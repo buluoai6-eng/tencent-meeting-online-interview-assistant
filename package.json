@@ -1,0 +1,49 @@
+{
+  "name": "tencent-meeting-finance-coach",
+  "version": "0.3.2",
+  "description": "Fully local finance and accounting interview coaching overlay for Tencent Meeting on Windows.",
+  "main": "src/main.js",
+  "author": "buluoai6-eng",
+  "homepage": "https://github.com/buluoai6-eng/tencent-meeting-finance-coach",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buluoai6-eng/tencent-meeting-finance-coach.git"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check scripts/smoke-local.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js",
+    "test:questions": "node scripts/test-question-detector.js",
+    "test:local": "node scripts/smoke-local.js",
+    "benchmark:finance": "node scripts/benchmark-finance.js",
+    "dist": "electron-builder --win portable"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "io.github.buluoai6eng.tencentmeetingfinancecoach",
+    "productName": "Tencent Meeting Finance Coach",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "prep-notes.md",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "local-backend",
+        "to": "local-backend",
+        "filter": ["asr_server.py", "finance-asr-corrections.json"]
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "TencentMeetingCoach-Local-${version}-portable.${ext}"
+    }
+  }
+}

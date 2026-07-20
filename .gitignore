@@ -1,0 +1,12 @@
+node_modules/
+dist/
+work/
+__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+*.exe
+*.wav
+*.onnx
+*.gguf

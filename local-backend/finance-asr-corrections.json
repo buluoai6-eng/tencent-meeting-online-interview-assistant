@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "description": "Tencent Meeting Coach 本地财会转写纠错。可在 E:\\TencentMeetingCoachLocal\\config 中编辑副本。",
+  "replacements": [
+    { "canonical": "权责发生制", "aliases": ["全责发生制", "权泽发生制", "权则发生制", "权责发声制", "权责发生质"] },
+    { "canonical": "收付实现制", "aliases": ["收复实现制", "收付实现值", "收付时限制", "收付实现质", "收付实限制"] },
+    { "canonical": "资产负债表", "aliases": ["资产负债标", "资产付债表"] },
+    { "canonical": "现金流量表", "aliases": ["现金流量标", "现金流两表"] },
+    { "canonical": "应收账款", "aliases": ["应收帐款", "应收账款款"] },
+    { "canonical": "合同负债", "aliases": ["合同付债", "合同负载"] },
+    { "canonical": "递延所得税", "aliases": ["地延所得税", "递沿所得税", "递延所的税"] },
+    { "canonical": "摊余成本", "aliases": ["滩余成本", "摊于成本", "摊于成分"] },
+    { "canonical": "预期信用损失", "aliases": ["预期信息损失", "预期信用损是", "预期信用损时"] },
+    { "canonical": "折旧摊销", "aliases": ["折旧探销", "折旧摊消", "折旧滩销"] },
+    { "canonical": "营运资本", "aliases": ["营运资版", "运营资本", "营运资产本"] },
+    { "canonical": "杜邦分析", "aliases": ["杜帮分析", "杜邦分希"] },
+    { "canonical": "商誉减值", "aliases": ["商誉减脂", "商誉剪值"] },
+    { "canonical": "加权平均资本成本", "aliases": ["加权平均资版成本", "加权平均资本成分"] },
+    { "canonical": "WACC", "aliases": ["W A C C", "W-A-C-C", "瓦克"] },
+    { "canonical": "DCF", "aliases": ["D C F", "D-C-F"] },
+    { "canonical": "EBITDA", "aliases": ["E B I T D A", "E-B-I-T-D-A", "伊比达"] },
+    { "canonical": "GAAP", "aliases": ["G A A P", "G-A-A-P", "嘎普"] },
+    { "canonical": "IFRS", "aliases": ["I F R S", "I-F-R-S"] }
+  ]
+}

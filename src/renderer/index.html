@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tencent Meeting Coach</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="coach-shell" id="coachShell">
+      <div class="signal-rail" id="signalRail" aria-hidden="true"><span></span></div>
+
+      <header class="topbar">
+        <div class="status-cluster">
+          <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+          <div>
+            <div class="eyebrow">TENCENT MEETING · LOCAL COACH</div>
+            <div class="status-label" id="statusLabel" aria-live="polite">准备就绪</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action action-primary" id="listenButton">开始监听</button>
+          <button class="icon-button recognition-button" id="recognitionButton" title="识别设置" aria-label="打开识别设置" aria-expanded="false">中·8</button>
+          <button class="icon-button" id="notesButton" title="编辑准备信息" aria-label="编辑准备信息">✎</button>
+          <button class="icon-button" id="compactButton" title="折叠" aria-label="折叠">−</button>
+          <button class="icon-button close" id="closeButton" title="关闭" aria-label="关闭">×</button>
+        </div>
+      </header>
+
+      <section class="recognition-panel" id="recognitionPanel" aria-label="识别设置" hidden>
+        <div class="settings-heading">
+          <div>
+            <div class="pane-label">识别设置</div>
+            <strong>中文会议调音</strong>
+          </div>
+          <span>下次监听生效</span>
+        </div>
+
+        <div class="settings-row">
+          <span>语言</span>
+          <div class="segmented" role="group" aria-label="识别语言">
+            <button type="button" data-language="zh">中文优先</button>
+            <button type="button" data-language="auto">自动语言</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <span>模型</span>
+          <div class="segmented" role="group" aria-label="识别模型精度">
+            <button type="button" data-precision="int8">速度 INT8</button>
+            <button type="button" data-precision="fp32">精度 FP32</button>
+          </div>
+        </div>
+
+        <label class="correction-toggle">
+          <input id="correctionsToggle" type="checkbox" />
+          <span aria-hidden="true"></span>
+          <div><strong>财会术语纠错</strong><small>词表仅保存在本机，可自行编辑</small></div>
+        </label>
+      </section>
+
+      <section class="content" id="content">
+        <div class="heard-pane">
+          <div class="pane-label">听到的问题</div>
+          <p class="transcript" id="transcript">点击“开始监听”，然后让腾讯会议播放声音。</p>
+        </div>
+
+        <div class="divider" aria-hidden="true"></div>
+
+        <div class="hint-pane">
+          <div class="pane-heading">
+            <div class="pane-label">回答抓手</div>
+            <div class="scroll-cue" id="hintScrollCue" aria-hidden="true">滚轮查看 ↓</div>
+          </div>
+          <div class="hint" id="hint" tabindex="0" aria-label="回答抓手，内容较长时可使用鼠标滚轮查看">先给结论，再用真实经历展开。</div>
+        </div>
+      </section>
+
+      <footer>
+        <span>完全本地 · 金融/会计知识库 · 不保存音频</span>
+        <span class="footer-separator">·</span>
+        <span>仅在获准使用时开启</span>
+        <span class="shortcut">Ctrl + Alt + M 显示/隐藏</span>
+      </footer>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>
