@@ -1,16 +1,16 @@
-# Tencent Meeting Finance Coach
+# 腾讯会议线上面试助手
 
-一个面向 Windows 与腾讯会议/VooV Meeting 的完全本地、始终置顶的面试回答辅助小窗。它捕获系统回放音频，在本机完成中文语音识别、财会术语纠错、问题判断、金融/会计知识检索和回答结构生成。
+一个面向 Windows 与腾讯会议/VooV Meeting 的完全本地、始终置顶的线上面试辅助小窗。它捕获系统回放音频，在本机完成中文语音识别、问题判断、知识检索、回答结构生成和历史问答翻阅，可用于行为题与通用技术题。
 
-> 本项目由金融专业学生发起并主导产品设计，开发过程使用 AI 编程工具辅助实现与测试。由于开发者的专业背景，项目对金融、会计、审计、估值和银行风险类面试做了针对性优化，而不是只提供通用字幕或通用聊天功能。
+> 项目定位是通用的腾讯会议线上面试助手，并非仅限金融岗位。由于项目由金融专业学生发起并主导产品设计，因此对金融、会计、审计、估值和银行风险类面试做了针对性优化。开发过程使用 AI 编程工具辅助实现与测试。
 
 ![应用界面](docs/assets/preview.png)
 
 ## 为什么做这个项目
 
-通用语音识别在金融会计场景中容易受到同音词、英文缩写和准则术语影响，例如“收付实现制”可能被识别成“收复实现制”。通用回答模型也常给出过长、缺少口径假设或难以在面试中快速扫读的答案。
+线上面试中的提问不一定以问号结尾，通用回答模型也常给出过长、难以在短时间内扫读的答案。本项目提供本地实时转写、问题判断和简短回答抓手，同时保留行为题与通用技术题的处理能力。
 
-本项目针对这些问题增加了：
+在金融会计场景中，语音识别还容易受到同音词、英文缩写和准则术语影响，例如“收付实现制”可能被识别成“收复实现制”。因此，本项目在通用能力之上增加了金融与会计专项优化：
 
 - 中文优先的 SenseVoice 本地识别，并保留自动语言和 FP32 模式作为可选项；
 - Silero VAD 静音过滤与较长问题停顿处理；
@@ -28,8 +28,8 @@ flowchart LR
     A["腾讯会议系统音频"] --> B["自适应能量分段"]
     B --> C["Silero VAD"]
     C --> D["SenseVoice 中文识别"]
-    D --> E["财会术语纠错"]
-    E --> F["问题判断与知识检索"]
+    D --> E["问题判断与可选术语纠错"]
+    E --> F["通用处理与专项知识检索"]
     F --> G["本地 Qwen"]
     G --> H["置顶回答抓手"]
 ```
@@ -49,8 +49,8 @@ flowchart LR
 ### 安装
 
 ```powershell
-git clone https://github.com/buluoai6-eng/tencent-meeting-finance-coach.git
-cd tencent-meeting-finance-coach
+git clone https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant.git
+cd tencent-meeting-online-interview-assistant
 npm install
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-local-models.ps1
 npm start

@@ -1,6 +1,6 @@
 # Third-party notices
 
-This source repository contains the original integration, interface, finance/accounting knowledge retrieval, prompt organization, correction rules, and test code for Tencent Meeting Finance Coach. It does not vendor the following projects' source code or model weights. The optional portable release bundles the Electron runtime and its license; the setup script downloads or installs the remaining third-party programs and models separately.
+This source repository contains the original integration, interface, interview workflow, finance/accounting knowledge retrieval, prompt organization, correction rules, and test code for 腾讯会议线上面试助手 (Tencent Meeting Online Interview Assistant). It does not vendor the following projects' source code or model weights. The optional portable release bundles the Electron runtime and its license; the setup script downloads or installs the remaining third-party programs and models separately.
 
 | Component | Purpose | Upstream license/source |
 | --- | --- | --- |
