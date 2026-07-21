@@ -479,7 +479,8 @@ button:focus-visible {
 
 footer {
   height: 35px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   padding: 0 22px;
   border-top: 1px solid rgba(148, 179, 210, 0.08);
@@ -487,12 +488,54 @@ footer {
   font-size: 10px;
 }
 
-.footer-separator {
-  margin: 0 7px;
+.privacy-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: center;
+}
+
+.history-nav button {
+  width: 23px;
+  height: 22px;
+  border: 1px solid rgba(98, 178, 255, 0.2);
+  border-radius: 7px;
+  color: #acd7ff;
+  background: rgba(47, 128, 237, 0.08);
+  font-family: "Segoe UI Variable Display", "Microsoft YaHei UI", sans-serif;
+  font-size: 17px;
+  line-height: 17px;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.history-nav button:hover:not(:disabled) {
+  border-color: rgba(98, 178, 255, 0.4);
+  color: white;
+  background: rgba(47, 128, 237, 0.2);
+}
+
+.history-nav button:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.history-nav span {
+  min-width: 38px;
+  color: #83a8ca;
+  font-family: "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .shortcut {
-  margin-left: auto;
+  justify-self: end;
   font-family: "Cascadia Mono", "Segoe UI Mono", monospace;
   color: #71879d;
 }
