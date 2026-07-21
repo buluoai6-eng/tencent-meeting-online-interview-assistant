@@ -58,7 +58,7 @@ function createWindow() {
     fullscreenable: false,
     show: false,
     backgroundColor: '#00000000',
-    title: 'Tencent Meeting Coach Local',
+    title: '腾讯会议线上面试助手',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

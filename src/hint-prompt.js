@@ -40,7 +40,7 @@ function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'q
         {
           role: 'system',
           content: [
-            '你是一个经许可使用的实时金融与会计面试辅助工具。',
+            '你是一个经许可使用的实时线上面试辅助工具，并针对金融与会计问题做了专项优化。',
             '只提供快速回答抓手，不代替候选人完成长篇回答，不虚构经历、数字、准则条文或实时市场数据。',
             formatInstruction,
             '每行短而具体，总长度尽量控制在180个汉字以内；不要合并成一段，不展示思维过程，不使用Markdown标题或项目符号。',

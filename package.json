@@ -1,13 +1,13 @@
 {
   "name": "tencent-meeting-finance-coach",
   "version": "0.3.3",
-  "description": "Fully local finance and accounting interview coaching overlay for Tencent Meeting on Windows.",
+  "description": "Fully local online interview assistant for Tencent Meeting on Windows, with targeted finance and accounting optimization.",
   "main": "src/main.js",
   "author": "buluoai6-eng",
-  "homepage": "https://github.com/buluoai6-eng/tencent-meeting-finance-coach",
+  "homepage": "https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant",
   "repository": {
     "type": "git",
-    "url": "https://github.com/buluoai6-eng/tencent-meeting-finance-coach.git"
+    "url": "https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant.git"
   },
   "license": "MIT",
   "scripts": {
@@ -25,7 +25,7 @@
   },
   "build": {
     "appId": "io.github.buluoai6eng.tencentmeetingfinancecoach",
-    "productName": "Tencent Meeting Finance Coach",
+    "productName": "Tencent Meeting Online Interview Assistant",
     "asar": true,
     "files": [
       "src/**/*",
@@ -43,7 +43,7 @@
       "target": [
         "portable"
       ],
-      "artifactName": "TencentMeetingCoach-Local-${version}-portable.${ext}"
+    "artifactName": "TencentMeetingInterviewAssistant-Local-${version}-portable.${ext}"
     }
   }
 }
