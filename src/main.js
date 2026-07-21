@@ -4,7 +4,7 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { buildHintRequest, normalizeHintResponse } = require('./hint-prompt');
-const { likelyQuestion } = require('./question-detector');
+const { TurnGuard } = require('./turn-guard');
 
 const WINDOW_WIDTH = 720;
 const WINDOW_HEIGHT = 248;
@@ -24,6 +24,7 @@ let asrProcess = null;
 let ollamaReadyPromise = null;
 let asrReadyPromise = null;
 let activeAsrUrl = ASR_URL;
+const turnGuard = new TurnGuard();
 
 function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
@@ -89,6 +90,15 @@ function createWindow() {
         model: OLLAMA_MODEL,
         knowledgeSections: ['三大报表与勾稽关系', '经营现金流、自由现金流与营运资本']
       });
+      if (process.env.COACH_SMOKE_HISTORY === '1') {
+        send('coach:hint', {
+          transcript: '请讲一下 DCF 估值的核心步骤。',
+          hint: '结论：DCF 用未来自由现金流折现得到企业价值。\n逻辑：预测自由现金流、计算 WACC、估计终值、折现并调整净债务。\n注意：增长率和折现率需要做敏感性分析。',
+          model: OLLAMA_MODEL,
+          knowledgeSections: ['DCF 与 WACC']
+        });
+        await mainWindow.webContents.executeJavaScript("document.getElementById('historyPrevious').click()");
+      }
     }
     if (process.env.COACH_SMOKE_SETTINGS === '1') {
       await mainWindow.webContents.executeJavaScript("document.getElementById('recognitionButton').click()");
@@ -356,10 +366,13 @@ function readPrepNotes() {
 }
 
 async function generateHint(transcript) {
-  if (!likelyQuestion(transcript)) {
-    send('coach:idle', { transcript });
+  const decision = turnGuard.evaluate(transcript);
+  if (!decision.allow) {
+    send('coach:idle', { transcript, reason: decision.reason });
     return;
   }
+  transcriptHistory.push(transcript);
+  transcriptHistory = transcriptHistory.slice(-12);
   if (hintAbortController) hintAbortController.abort();
   hintAbortController = new AbortController();
   send('coach:hint-start', { transcript });
@@ -379,7 +392,10 @@ async function generateHint(transcript) {
   }, 120000);
   const hint = normalizeHintResponse(data.message?.content, transcript);
   if (!hint || hint === 'NO_HINT') send('coach:idle', { transcript });
-  else send('coach:hint', { transcript, hint, model: OLLAMA_MODEL, knowledgeSections });
+  else {
+    turnGuard.recordAnswer(transcript, hint);
+    send('coach:hint', { transcript, hint, model: OLLAMA_MODEL, knowledgeSections });
+  }
 }
 
 class LocalTranscriber {
@@ -427,8 +443,6 @@ class LocalTranscriber {
       send('coach:status', { state: 'ready', label: `监听中 · ${this.asrLabel}` });
       return;
     }
-    transcriptHistory.push(transcript);
-    transcriptHistory = transcriptHistory.slice(-12);
     send('coach:transcript', { transcript, local: true, inferenceMs: result.inference_ms });
     await generateHint(transcript);
   }
@@ -457,6 +471,7 @@ app.whenReady().then(async () => {
 
 ipcMain.handle('coach:start', async (_event, options = {}) => {
   transcriber?.close();
+  turnGuard.reset();
   send('coach:status', { state: 'connecting', label: '正在启动本地模型' });
   const [asr] = await Promise.all([ensureAsr(options), ensureOllama()]);
   const asrLabel = `${asr.language === 'zh' ? '中文' : '自动'} ${asr.precision.toUpperCase()} · VAD`;

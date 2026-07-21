@@ -1,6 +1,6 @@
 {
   "name": "tencent-meeting-finance-coach",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Fully local finance and accounting interview coaching overlay for Tencent Meeting on Windows.",
   "main": "src/main.js",
   "author": "buluoai6-eng",
@@ -12,8 +12,8 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check scripts/smoke-local.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js",
-    "test:questions": "node scripts/test-question-detector.js",
+    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/turn-guard.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check scripts/smoke-local.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js && node --check scripts/test-turn-guard.js",
+    "test:questions": "node scripts/test-question-detector.js && node scripts/test-turn-guard.js",
     "test:local": "node scripts/smoke-local.js",
     "benchmark:finance": "node scripts/benchmark-finance.js",
     "dist": "electron-builder --win portable"

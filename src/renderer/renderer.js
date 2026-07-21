@@ -11,6 +11,9 @@ const transcriptElement = document.getElementById('transcript');
 const hintElement = document.getElementById('hint');
 const hintPane = document.querySelector('.hint-pane');
 const hintScrollCue = document.getElementById('hintScrollCue');
+const historyPrevious = document.getElementById('historyPrevious');
+const historyNext = document.getElementById('historyNext');
+const historyPosition = document.getElementById('historyPosition');
 
 const TARGET_SAMPLE_RATE = 16000;
 const SILENCE_TO_COMMIT_MS = 1050;
@@ -35,6 +38,8 @@ let preRoll = [];
 let partialTranscript = '';
 let noiseFloor = 0.0015;
 let asrSettings = loadAsrSettings();
+let qaHistory = [];
+let historyIndex = -1;
 
 function loadAsrSettings() {
   try {
@@ -125,6 +130,40 @@ function setHintText(value) {
   hintElement.scrollTop = 0;
   requestAnimationFrame(updateHintOverflow);
 }
+
+function updateHistoryNavigation() {
+  const total = qaHistory.length;
+  historyPosition.textContent = total ? `${historyIndex + 1} / ${total}` : '0 / 0';
+  historyPrevious.disabled = historyIndex <= 0;
+  historyNext.disabled = historyIndex < 0 || historyIndex >= total - 1;
+}
+
+function renderHistoryEntry(index) {
+  if (index < 0 || index >= qaHistory.length) return;
+  historyIndex = index;
+  const entry = qaHistory[historyIndex];
+  transcriptElement.textContent = entry.transcript;
+  setHintText(entry.hint);
+  updateHistoryNavigation();
+  statusLabel.textContent = historyIndex === qaHistory.length - 1
+    ? '提示已就绪'
+    : `查看历史问答 ${historyIndex + 1} / ${qaHistory.length}`;
+}
+
+function addHistoryEntry(transcript, hint) {
+  const previous = qaHistory.at(-1);
+  if (previous?.transcript === transcript) {
+    previous.hint = hint;
+  } else {
+    qaHistory.push({ transcript, hint });
+  }
+  historyIndex = qaHistory.length - 1;
+  renderHistoryEntry(historyIndex);
+}
+
+historyPrevious.addEventListener('click', () => renderHistoryEntry(historyIndex - 1));
+historyNext.addEventListener('click', () => renderHistoryEntry(historyIndex + 1));
+updateHistoryNavigation();
 
 hintPane.addEventListener('wheel', (event) => {
   if (hintElement.scrollHeight <= hintElement.clientHeight + 1) return;
@@ -319,12 +358,12 @@ window.coach.onStatus(({ state, label }) => setVisualState(state, label));
 
 window.coach.onDelta(({ delta }) => {
   partialTranscript += delta;
-  transcriptElement.textContent = partialTranscript || '正在识别…';
+  if (!qaHistory.length) transcriptElement.textContent = partialTranscript || '正在识别…';
 });
 
 window.coach.onTranscript(({ transcript }) => {
   partialTranscript = '';
-  transcriptElement.textContent = transcript;
+  if (!qaHistory.length) transcriptElement.textContent = transcript;
 });
 
 window.coach.onHintStart(({ transcript }) => {
@@ -334,16 +373,22 @@ window.coach.onHintStart(({ transcript }) => {
   statusLabel.textContent = '识别到问题 · 正在整理';
 });
 
-window.coach.onHint(({ hint }) => {
+window.coach.onHint(({ transcript, hint }) => {
   shell.classList.remove('thinking');
-  setHintText(hint);
-  statusLabel.textContent = '提示已就绪';
+  addHistoryEntry(transcript, hint);
 });
 
-window.coach.onIdle(() => {
+window.coach.onIdle(({ reason } = {}) => {
   shell.classList.remove('thinking');
-  setHintText('这段更像陈述，继续等待问题。');
-  statusLabel.textContent = '监听中 · 等待问题';
+  if (qaHistory.length) {
+    renderHistoryEntry(historyIndex);
+    statusLabel.textContent = reason === 'candidate-response' || reason === 'answer-echo' || reason === 'answer-protection'
+      ? '已忽略疑似面试者回答'
+      : '监听中 · 等待新问题';
+  } else {
+    setHintText('这段更像陈述，继续等待问题。');
+    statusLabel.textContent = '监听中 · 等待问题';
+  }
 });
 
 window.coach.onError((message) => {

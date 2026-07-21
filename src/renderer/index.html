@@ -79,9 +79,12 @@
       </section>
 
       <footer>
-        <span>完全本地 · 金融/会计知识库 · 不保存音频</span>
-        <span class="footer-separator">·</span>
-        <span>仅在获准使用时开启</span>
+        <span class="privacy-note">完全本地 · 不保存音频 · 获准后使用</span>
+        <nav class="history-nav" id="historyNav" aria-label="本次使用的历史问答">
+          <button type="button" id="historyPrevious" aria-label="查看上一条问答" title="上一条问答">‹</button>
+          <span id="historyPosition" aria-live="polite">0 / 0</span>
+          <button type="button" id="historyNext" aria-label="查看下一条问答" title="下一条问答">›</button>
+        </nav>
         <span class="shortcut">Ctrl + Alt + M 显示/隐藏</span>
       </footer>
     </main>
