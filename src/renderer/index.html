@@ -22,43 +22,84 @@
 
         <div class="actions">
           <button class="action action-primary" id="listenButton">开始监听</button>
-          <button class="icon-button recognition-button" id="recognitionButton" title="识别设置" aria-label="打开识别设置" aria-expanded="false">中·8</button>
+          <button class="icon-button recognition-button" id="recognitionButton" title="识别与回答设置" aria-label="打开识别与回答设置" aria-expanded="false">中·8</button>
           <button class="icon-button" id="notesButton" title="编辑准备信息" aria-label="编辑准备信息">✎</button>
           <button class="icon-button" id="compactButton" title="折叠" aria-label="折叠">−</button>
           <button class="icon-button close" id="closeButton" title="关闭" aria-label="关闭">×</button>
         </div>
       </header>
 
-      <section class="recognition-panel" id="recognitionPanel" aria-label="识别设置" hidden>
-        <div class="settings-heading">
-          <div>
-            <div class="pane-label">识别设置</div>
-            <strong>中文会议调音</strong>
-          </div>
+      <section class="recognition-panel" id="recognitionPanel" aria-label="识别与回答设置" hidden>
+        <nav class="settings-tabs" aria-label="设置类别">
+          <button type="button" class="selected" data-settings-tab="recognition" aria-selected="true">识别</button>
+          <button type="button" data-settings-tab="answer" aria-selected="false">回答</button>
           <span>下次监听生效</span>
-        </div>
+        </nav>
 
-        <div class="settings-row">
-          <span>语言</span>
-          <div class="segmented" role="group" aria-label="识别语言">
-            <button type="button" data-language="zh">中文优先</button>
-            <button type="button" data-language="auto">自动语言</button>
+        <div class="settings-page" id="recognitionSettingsPage">
+          <div class="settings-heading">
+            <div>
+              <div class="pane-label">识别设置</div>
+              <strong>中文会议调音</strong>
+            </div>
+            <span>音频始终在本机处理</span>
           </div>
-        </div>
 
-        <div class="settings-row">
-          <span>模型</span>
-          <div class="segmented" role="group" aria-label="识别模型精度">
-            <button type="button" data-precision="int8">速度 INT8</button>
-            <button type="button" data-precision="fp32">精度 FP32</button>
+          <div class="recognition-grid">
+            <div class="settings-row">
+              <span>语言</span>
+              <div class="segmented" role="group" aria-label="识别语言">
+                <button type="button" data-language="zh">中文优先</button>
+                <button type="button" data-language="auto">自动语言</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <span>模型</span>
+              <div class="segmented" role="group" aria-label="识别模型精度">
+                <button type="button" data-precision="int8">速度 INT8</button>
+                <button type="button" data-precision="fp32">精度 FP32</button>
+              </div>
+            </div>
           </div>
+
+          <label class="correction-toggle">
+            <input id="correctionsToggle" type="checkbox" />
+            <span aria-hidden="true"></span>
+            <div><strong>财会术语纠错</strong><small>词表仅保存在本机，可自行编辑</small></div>
+          </label>
         </div>
 
-        <label class="correction-toggle">
-          <input id="correctionsToggle" type="checkbox" />
-          <span aria-hidden="true"></span>
-          <div><strong>财会术语纠错</strong><small>词表仅保存在本机，可自行编辑</small></div>
-        </label>
+        <form class="settings-page answer-settings" id="answerSettingsPage" hidden>
+          <div class="answer-toolbar">
+            <div class="segmented answer-mode" role="group" aria-label="回答模型来源">
+              <button type="button" data-answer-mode="local">本地模型</button>
+              <button type="button" data-answer-mode="api">自己的 API</button>
+            </div>
+            <span class="answer-privacy" id="answerPrivacy">本地模式不上传回答文本</span>
+          </div>
+
+          <div class="api-fields" id="apiFields" hidden>
+            <label class="compact-field api-url-field">
+              <span>Base URL</span>
+              <input id="apiBaseUrl" type="url" maxlength="500" value="https://api.openai.com/v1" spellcheck="false" />
+            </label>
+            <label class="compact-field">
+              <span>模型名</span>
+              <input id="apiModel" type="text" maxlength="160" value="gpt-5.6-terra" spellcheck="false" />
+            </label>
+            <label class="compact-field api-key-field">
+              <span>API Key <em id="apiKeyState">未保存</em></span>
+              <input id="apiKey" type="password" maxlength="1000" placeholder="输入新 Key；留空则保留已保存 Key" autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+
+          <div class="answer-actions">
+            <span id="answerSettingsStatus" aria-live="polite">Key 由 Windows 加密保存，不会显示明文</span>
+            <button type="button" class="text-button danger-text" id="clearApiKey">清除 Key</button>
+            <button type="submit" class="text-button save-answer-settings">保存设置</button>
+          </div>
+        </form>
       </section>
 
       <section class="content" id="content">
@@ -79,7 +120,7 @@
       </section>
 
       <footer>
-        <span class="privacy-note">完全本地 · 不保存音频 · 获准后使用</span>
+        <span class="privacy-note" id="privacyNote">完全本地 · 不保存音频 · 获准后使用</span>
         <nav class="history-nav" id="historyNav" aria-label="本次使用的历史问答">
           <button type="button" id="historyPrevious" aria-label="查看上一条问答" title="上一条问答">‹</button>
           <span id="historyPosition" aria-live="polite">0 / 0</span>

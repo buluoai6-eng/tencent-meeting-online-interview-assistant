@@ -1,9 +1,16 @@
-const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, screen, session, shell } = require('electron');
+const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, safeStorage, screen, session, shell } = require('electron');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { buildHintRequest, normalizeHintResponse } = require('./hint-prompt');
+const {
+  DEFAULT_ANSWER_SETTINGS,
+  buildChatCompletionsBody,
+  buildChatCompletionsUrl,
+  extractChatCompletionsText,
+  normalizeAnswerSettings
+} = require('./answer-provider');
 const { TurnGuard } = require('./turn-guard');
 
 const WINDOW_WIDTH = 720;
@@ -14,6 +21,7 @@ const OLLAMA_URL = process.env.COACH_OLLAMA_URL || 'http://127.0.0.1:11434';
 const ASR_URL = process.env.COACH_ASR_URL || 'http://127.0.0.1:8765';
 const OLLAMA_MODEL = process.env.COACH_LOCAL_LLM || 'qwen3.5:9b';
 const SENSEVOICE_NAME = 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17';
+const ANSWER_SETTINGS_FILE = 'answer-provider.json';
 
 let mainWindow = null;
 let transcriber = null;
@@ -44,6 +52,60 @@ function ensurePrepNotes() {
     fs.copyFileSync(path.join(app.getAppPath(), 'prep-notes.md'), destination);
   }
   return destination;
+}
+
+function answerSettingsPath() {
+  return path.join(app.getPath('userData'), ANSWER_SETTINGS_FILE);
+}
+
+function readAnswerRecord() {
+  try {
+    return JSON.parse(fs.readFileSync(answerSettingsPath(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function readAnswerSettings() {
+  const record = readAnswerRecord();
+  try {
+    return { ...normalizeAnswerSettings(record), encryptedApiKey: String(record.encryptedApiKey || '') };
+  } catch {
+    return { ...DEFAULT_ANSWER_SETTINGS, encryptedApiKey: '' };
+  }
+}
+
+function publicAnswerSettings(settings = readAnswerSettings()) {
+  return {
+    mode: settings.mode,
+    baseUrl: settings.baseUrl,
+    model: settings.model,
+    hasApiKey: Boolean(settings.encryptedApiKey)
+  };
+}
+
+function decryptApiKey(settings = readAnswerSettings()) {
+  if (!settings.encryptedApiKey) throw new Error('尚未保存 API Key，请在“设置 → 回答”中填写并保存。');
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows 安全存储当前不可用，无法读取 API Key。');
+  try {
+    return safeStorage.decryptString(Buffer.from(settings.encryptedApiKey, 'base64'));
+  } catch {
+    throw new Error('API Key 无法解密，请清除后重新保存。');
+  }
+}
+
+function saveAnswerSettings(input = {}) {
+  const current = readAnswerSettings();
+  const normalized = normalizeAnswerSettings(input);
+  let encryptedApiKey = input.clearApiKey === true ? '' : current.encryptedApiKey;
+  const apiKey = String(input.apiKey || '').trim();
+  if (apiKey) {
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows 安全存储当前不可用，不能安全保存 API Key。');
+    encryptedApiKey = safeStorage.encryptString(apiKey).toString('base64');
+  }
+  if (normalized.mode === 'api' && !encryptedApiKey) throw new Error('选择 API 回答时必须先填写 API Key。');
+  fs.writeFileSync(answerSettingsPath(), JSON.stringify({ ...normalized, encryptedApiKey }, null, 2), 'utf8');
+  return publicAnswerSettings({ ...normalized, encryptedApiKey });
 }
 
 function createWindow() {
@@ -102,6 +164,13 @@ function createWindow() {
     }
     if (process.env.COACH_SMOKE_SETTINGS === '1') {
       await mainWindow.webContents.executeJavaScript("document.getElementById('recognitionButton').click()");
+    }
+    if (process.env.COACH_SMOKE_ANSWER_SETTINGS === '1') {
+      await mainWindow.webContents.executeJavaScript(`
+        document.getElementById('recognitionButton').click();
+        document.querySelector('[data-settings-tab="answer"]').click();
+        document.querySelector('[data-answer-mode="api"]').click();
+      `);
     }
     const screenshotPath = process.env.COACH_SMOKE_SCREENSHOT;
     if (screenshotPath) {
@@ -191,7 +260,10 @@ async function fetchJson(url, options = {}, timeoutMs = 5000) {
     } catch {
       data = { message: text };
     }
-    if (!response.ok) throw new Error(data.error || data.message || `${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      const reason = data.error?.message || data.error || data.message || `${response.status} ${response.statusText}`;
+      throw new Error(typeof reason === 'string' ? reason : JSON.stringify(reason));
+    }
     return data;
   } finally {
     clearTimeout(timer);
@@ -377,31 +449,51 @@ async function generateHint(transcript) {
   hintAbortController = new AbortController();
   send('coach:hint-start', { transcript });
 
+  const answerSettings = readAnswerSettings();
+  const model = answerSettings.mode === 'api' ? answerSettings.model : OLLAMA_MODEL;
   const { request: body, knowledgeSections } = buildHintRequest({
     transcript,
     context: transcriptHistory.slice(-5).join('\n'),
     prepNotes: readPrepNotes(),
-    model: OLLAMA_MODEL
+    model
   });
 
-  const data = await fetchJson(`${OLLAMA_URL}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: hintAbortController.signal
-  }, 120000);
-  const hint = normalizeHintResponse(data.message?.content, transcript);
+  let rawHint = '';
+  if (answerSettings.mode === 'api') {
+    const apiKey = decryptApiKey(answerSettings);
+    const data = await fetchJson(buildChatCompletionsUrl(answerSettings.baseUrl), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(buildChatCompletionsBody(body, answerSettings)),
+      signal: hintAbortController.signal
+    }, 120000);
+    rawHint = extractChatCompletionsText(data);
+    if (!rawHint) throw new Error('API 返回成功，但没有找到回答文本。请检查模型是否兼容 Chat Completions。');
+  } else {
+    const data = await fetchJson(`${OLLAMA_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: hintAbortController.signal
+    }, 120000);
+    rawHint = data.message?.content;
+  }
+  const hint = normalizeHintResponse(rawHint, transcript);
   if (!hint || hint === 'NO_HINT') send('coach:idle', { transcript });
   else {
     turnGuard.recordAnswer(transcript, hint);
-    send('coach:hint', { transcript, hint, model: OLLAMA_MODEL, knowledgeSections });
+    send('coach:hint', { transcript, hint, model, provider: answerSettings.mode, knowledgeSections });
   }
 }
 
 class LocalTranscriber {
-  constructor(sampleRate = 16000, asrLabel = '中文 INT8 · VAD') {
+  constructor(sampleRate = 16000, asrLabel = '中文 INT8 · VAD', answerLabel = '本地 Qwen') {
     this.sampleRate = Number(sampleRate) || 16000;
     this.asrLabel = asrLabel;
+    this.answerLabel = answerLabel;
     this.chunks = [];
     this.bytes = 0;
     this.queue = Promise.resolve();
@@ -440,7 +532,7 @@ class LocalTranscriber {
     }, 60000);
     const transcript = String(result.text || '').trim();
     if (!transcript || this.closed) {
-      send('coach:status', { state: 'ready', label: `监听中 · ${this.asrLabel}` });
+      send('coach:status', { state: 'ready', label: `监听中 · ${this.asrLabel} · ${this.answerLabel}` });
       return;
     }
     send('coach:transcript', { transcript, local: true, inferenceMs: result.inference_ms });
@@ -472,13 +564,32 @@ app.whenReady().then(async () => {
 ipcMain.handle('coach:start', async (_event, options = {}) => {
   transcriber?.close();
   turnGuard.reset();
-  send('coach:status', { state: 'connecting', label: '正在启动本地模型' });
-  const [asr] = await Promise.all([ensureAsr(options), ensureOllama()]);
+  const answerSettings = readAnswerSettings();
+  const answerLabel = answerSettings.mode === 'api' ? `API ${answerSettings.model}` : '本地 Qwen';
+  send('coach:status', {
+    state: 'connecting',
+    label: answerSettings.mode === 'api' ? '正在启动本地识别' : '正在启动本地识别与回答模型'
+  });
+  if (answerSettings.mode === 'api') decryptApiKey(answerSettings);
+  const [asr] = await Promise.all([
+    ensureAsr(options),
+    answerSettings.mode === 'local' ? ensureOllama() : Promise.resolve(true)
+  ]);
   const asrLabel = `${asr.language === 'zh' ? '中文' : '自动'} ${asr.precision.toUpperCase()} · VAD`;
-  transcriber = new LocalTranscriber(options.sampleRate, asrLabel);
-  send('coach:status', { state: 'ready', label: `监听中 · ${asrLabel}` });
-  return { asr: asr.engine, model: OLLAMA_MODEL, local: true, settings: asr };
+  transcriber = new LocalTranscriber(options.sampleRate, asrLabel, answerLabel);
+  send('coach:status', { state: 'ready', label: `监听中 · ${asrLabel} · ${answerLabel}` });
+  return {
+    asr: asr.engine,
+    model: answerSettings.mode === 'api' ? answerSettings.model : OLLAMA_MODEL,
+    provider: answerSettings.mode,
+    local: answerSettings.mode === 'local',
+    settings: asr
+  };
 });
+
+ipcMain.handle('coach:get-answer-settings', () => publicAnswerSettings());
+
+ipcMain.handle('coach:save-answer-settings', (_event, settings) => saveAnswerSettings(settings));
 
 ipcMain.on('coach:audio', (_event, base64Audio) => transcriber?.append(base64Audio));
 ipcMain.on('coach:commit', () => transcriber?.commit());

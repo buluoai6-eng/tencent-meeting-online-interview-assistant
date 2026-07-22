@@ -1,7 +1,7 @@
 {
   "name": "tencent-meeting-finance-coach",
-  "version": "0.3.3",
-  "description": "Fully local online interview assistant for Tencent Meeting on Windows, with targeted finance and accounting optimization.",
+  "version": "0.3.4",
+  "description": "Online interview assistant for Tencent Meeting on Windows with local or user-provided API answers and targeted finance/accounting optimization.",
   "main": "src/main.js",
   "author": "buluoai6-eng",
   "homepage": "https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant",
@@ -12,9 +12,10 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/turn-guard.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check scripts/smoke-local.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js && node --check scripts/test-turn-guard.js",
-    "test:questions": "node scripts/test-question-detector.js && node scripts/test-turn-guard.js",
+    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/turn-guard.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check src/answer-provider.js && node --check scripts/smoke-local.js && node --check scripts/smoke-key-storage.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js && node --check scripts/test-turn-guard.js && node --check scripts/test-answer-provider.js",
+    "test:questions": "node scripts/test-question-detector.js && node scripts/test-turn-guard.js && node scripts/test-answer-provider.js",
     "test:local": "node scripts/smoke-local.js",
+    "test:key-storage": "electron scripts/smoke-key-storage.js",
     "benchmark:finance": "node scripts/benchmark-finance.js",
     "dist": "electron-builder --win portable"
   },

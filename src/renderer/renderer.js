@@ -4,6 +4,16 @@ const listenButton = document.getElementById('listenButton');
 const recognitionButton = document.getElementById('recognitionButton');
 const recognitionPanel = document.getElementById('recognitionPanel');
 const correctionsToggle = document.getElementById('correctionsToggle');
+const recognitionSettingsPage = document.getElementById('recognitionSettingsPage');
+const answerSettingsPage = document.getElementById('answerSettingsPage');
+const apiFields = document.getElementById('apiFields');
+const apiBaseUrl = document.getElementById('apiBaseUrl');
+const apiModel = document.getElementById('apiModel');
+const apiKey = document.getElementById('apiKey');
+const apiKeyState = document.getElementById('apiKeyState');
+const answerPrivacy = document.getElementById('answerPrivacy');
+const answerSettingsStatus = document.getElementById('answerSettingsStatus');
+const clearApiKey = document.getElementById('clearApiKey');
 const notesButton = document.getElementById('notesButton');
 const compactButton = document.getElementById('compactButton');
 const closeButton = document.getElementById('closeButton');
@@ -14,6 +24,7 @@ const hintScrollCue = document.getElementById('hintScrollCue');
 const historyPrevious = document.getElementById('historyPrevious');
 const historyNext = document.getElementById('historyNext');
 const historyPosition = document.getElementById('historyPosition');
+const privacyNote = document.getElementById('privacyNote');
 
 const TARGET_SAMPLE_RATE = 16000;
 const SILENCE_TO_COMMIT_MS = 1050;
@@ -22,6 +33,12 @@ const MAX_UTTERANCE_MS = 35000;
 const PRE_ROLL_MS = 650;
 const SETTINGS_KEY = 'tencent-meeting-coach:asr-settings';
 const DEFAULT_ASR_SETTINGS = { language: 'zh', precision: 'int8', corrections: true };
+const DEFAULT_ANSWER_SETTINGS = {
+  mode: 'local',
+  baseUrl: 'https://api.openai.com/v1',
+  model: 'gpt-5.6-terra',
+  hasApiKey: false
+};
 
 let mediaStream = null;
 let audioContext = null;
@@ -38,6 +55,8 @@ let preRoll = [];
 let partialTranscript = '';
 let noiseFloor = 0.0015;
 let asrSettings = loadAsrSettings();
+let answerSettings = { ...DEFAULT_ANSWER_SETTINGS };
+let savedAnswerMode = 'local';
 let qaHistory = [];
 let historyIndex = -1;
 
@@ -73,9 +92,48 @@ function renderAsrSettings() {
   recognitionButton.textContent = `${asrSettings.language === 'zh' ? '中' : '自'}·${asrSettings.precision === 'fp32' ? '32' : '8'}`;
 }
 
+function setAnswerSettingsMessage(message, state = '') {
+  answerSettingsStatus.textContent = message;
+  answerSettingsStatus.classList.toggle('error-message', state === 'error');
+  answerSettingsStatus.classList.toggle('success-message', state === 'success');
+}
+
+function renderAnswerSettings() {
+  document.querySelectorAll('[data-answer-mode]').forEach((button) => {
+    const active = button.dataset.answerMode === answerSettings.mode;
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const apiMode = answerSettings.mode === 'api';
+  apiFields.hidden = !apiMode;
+  answerSettingsPage.classList.toggle('api-active', apiMode);
+  answerPrivacy.textContent = apiMode
+    ? '题目、知识和准备信息会发送；音频不上传'
+    : '本地模式不上传回答文本';
+  apiBaseUrl.value = answerSettings.baseUrl;
+  apiModel.value = answerSettings.model;
+  apiKeyState.textContent = answerSettings.hasApiKey ? '已加密保存' : '未保存';
+  apiKeyState.classList.toggle('saved', answerSettings.hasApiKey);
+  clearApiKey.disabled = !answerSettings.hasApiKey || listening;
+  privacyNote.textContent = savedAnswerMode === 'api'
+    ? '本地识别 · API 回答 · 不保存音频'
+    : '完全本地 · 不保存音频 · 获准后使用';
+}
+
+async function loadAnswerSettings() {
+  try {
+    answerSettings = await window.coach.getAnswerSettings();
+    savedAnswerMode = answerSettings.mode;
+    renderAnswerSettings();
+  } catch (error) {
+    setAnswerSettingsMessage(error.message || String(error), 'error');
+  }
+}
+
 function setSettingsDisabled(disabled) {
   recognitionPanel.querySelectorAll('button, input').forEach((control) => { control.disabled = disabled; });
   recognitionButton.disabled = disabled;
+  clearApiKey.disabled = disabled || !answerSettings.hasApiKey;
 }
 
 function closeRecognitionPanel() {
@@ -93,6 +151,63 @@ recognitionPanel.addEventListener('click', (event) => event.stopPropagation());
 document.addEventListener('click', closeRecognitionPanel);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeRecognitionPanel();
+});
+
+document.querySelectorAll('[data-settings-tab]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const answerTab = button.dataset.settingsTab === 'answer';
+    recognitionSettingsPage.hidden = answerTab;
+    answerSettingsPage.hidden = !answerTab;
+    document.querySelectorAll('[data-settings-tab]').forEach((tab) => {
+      const active = tab === button;
+      tab.classList.toggle('selected', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+  });
+});
+
+document.querySelectorAll('[data-answer-mode]').forEach((button) => {
+  button.addEventListener('click', () => {
+    answerSettings.mode = button.dataset.answerMode;
+    renderAnswerSettings();
+    setAnswerSettingsMessage('点击“保存设置”后生效');
+  });
+});
+
+answerSettingsPage.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setAnswerSettingsMessage('正在安全保存…');
+  try {
+    answerSettings = await window.coach.saveAnswerSettings({
+      mode: answerSettings.mode,
+      baseUrl: apiBaseUrl.value,
+      model: apiModel.value,
+      apiKey: apiKey.value
+    });
+    apiKey.value = '';
+    savedAnswerMode = answerSettings.mode;
+    renderAnswerSettings();
+    setAnswerSettingsMessage(answerSettings.mode === 'api' ? 'API 回答已启用' : '本地回答已启用', 'success');
+  } catch (error) {
+    setAnswerSettingsMessage(error.message || String(error), 'error');
+  }
+});
+
+clearApiKey.addEventListener('click', async () => {
+  try {
+    answerSettings = await window.coach.saveAnswerSettings({
+      mode: 'local',
+      baseUrl: apiBaseUrl.value,
+      model: apiModel.value,
+      clearApiKey: true
+    });
+    apiKey.value = '';
+    savedAnswerMode = 'local';
+    renderAnswerSettings();
+    setAnswerSettingsMessage('Key 已清除，并已切回本地回答', 'success');
+  } catch (error) {
+    setAnswerSettingsMessage(error.message || String(error), 'error');
+  }
 });
 
 document.querySelectorAll('[data-language]').forEach((button) => {
@@ -117,6 +232,8 @@ correctionsToggle.addEventListener('change', () => {
 });
 
 renderAsrSettings();
+renderAnswerSettings();
+loadAnswerSettings();
 
 function updateHintOverflow() {
   const overflowing = hintElement.scrollHeight > hintElement.clientHeight + 1;
@@ -296,7 +413,8 @@ async function startListening() {
     listening = true;
     listenButton.textContent = '停止监听';
     listenButton.classList.add('active');
-    setVisualState('ready', `监听中 · ${result.settings.language === 'zh' ? '中文' : '自动'} ${result.settings.precision.toUpperCase()} · VAD`);
+    const answerLabel = result.provider === 'api' ? `API ${result.model}` : '本地 Qwen';
+    setVisualState('ready', `监听中 · ${result.settings.language === 'zh' ? '中文' : '自动'} ${result.settings.precision.toUpperCase()} · VAD · ${answerLabel}`);
     setHintText('先给结论，再用真实经历展开。');
   } catch (error) {
     await stopListening();
