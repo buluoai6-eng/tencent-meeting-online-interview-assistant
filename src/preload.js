@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('coach', {
   sendAudio: (base64Audio) => ipcRenderer.send('coach:audio', base64Audio),
   commitAudio: () => ipcRenderer.send('coach:commit'),
   openPrepNotes: () => ipcRenderer.invoke('coach:open-prep'),
+  getAnswerSettings: () => ipcRenderer.invoke('coach:get-answer-settings'),
+  saveAnswerSettings: (settings) => ipcRenderer.invoke('coach:save-answer-settings', settings),
   setCompact: (compact) => ipcRenderer.invoke('coach:set-compact', compact),
   close: () => ipcRenderer.send('coach:close'),
   onStatus: (callback) => ipcRenderer.on('coach:status', (_event, value) => callback(value)),

@@ -211,10 +211,10 @@ button:focus-visible {
 .recognition-panel {
   position: absolute;
   z-index: 20;
-  top: 57px;
+  top: 52px;
   right: 74px;
-  width: 286px;
-  padding: 9px 12px;
+  width: 500px;
+  padding: 7px 12px;
   border: 1px solid rgba(126, 175, 222, 0.22);
   border-radius: 14px;
   background: linear-gradient(150deg, rgba(20, 36, 55, 0.99), rgba(10, 20, 32, 0.99));
@@ -223,6 +223,46 @@ button:focus-visible {
 }
 
 .recognition-panel[hidden] {
+  display: none;
+}
+
+.settings-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: -1px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(148, 179, 210, 0.1);
+}
+
+.settings-tabs button {
+  height: 22px;
+  padding: 0 12px;
+  border-radius: 7px;
+  color: #71879e;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.settings-tabs button:hover {
+  color: #dcecff;
+}
+
+.settings-tabs button.selected {
+  color: #eef7ff;
+  background: rgba(47, 128, 237, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(98, 178, 255, 0.12);
+}
+
+.settings-tabs > span {
+  margin-left: auto;
+  color: #60768d;
+  font-size: 9px;
+}
+
+.settings-page[hidden],
+.api-fields[hidden] {
   display: none;
 }
 
@@ -246,6 +286,12 @@ button:focus-visible {
   padding-top: 2px;
   color: #60768d;
   font-size: 9px;
+}
+
+.recognition-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .settings-row {
@@ -357,6 +403,146 @@ button:focus-visible {
 .correction-toggle small {
   color: #61768c;
   font-size: 9px;
+}
+
+.answer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.answer-mode {
+  width: 220px;
+  flex: 0 0 auto;
+}
+
+.answer-privacy {
+  overflow: hidden;
+  color: #71879e;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.answer-settings.api-active .answer-privacy {
+  color: #e5b766;
+}
+
+.api-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.85fr);
+  gap: 3px 8px;
+  margin-top: 3px;
+}
+
+.compact-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compact-field > span {
+  display: flex;
+  justify-content: space-between;
+  color: #71869d;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.compact-field em {
+  color: #688097;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.compact-field em.saved {
+  color: #70c6a0;
+}
+
+.compact-field input {
+  width: 100%;
+  height: 21px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(126, 175, 222, 0.17);
+  border-radius: 7px;
+  outline: none;
+  color: #dcecff;
+  background: rgba(3, 11, 19, 0.42);
+  font-family: "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 9px;
+}
+
+.compact-field input:focus {
+  border-color: rgba(98, 178, 255, 0.52);
+  box-shadow: 0 0 0 2px rgba(47, 128, 237, 0.1);
+}
+
+.compact-field input::placeholder {
+  color: #52677c;
+}
+
+.api-key-field {
+  grid-column: 1 / -1;
+}
+
+.answer-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.answer-actions > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #657b91;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.answer-actions > span.error-message {
+  color: #ff9292;
+}
+
+.answer-actions > span.success-message {
+  color: #78cda8;
+}
+
+.text-button {
+  height: 21px;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: #b8d9f7;
+  background: rgba(47, 128, 237, 0.14);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.text-button:hover {
+  color: white;
+  background: rgba(47, 128, 237, 0.24);
+}
+
+.text-button.danger-text {
+  color: #b98d92;
+  background: transparent;
+}
+
+.text-button.danger-text:hover:not(:disabled) {
+  color: #ffb4b4;
+  background: rgba(255, 114, 114, 0.1);
+}
+
+.text-button:disabled,
+.compact-field input:disabled {
+  cursor: default;
+  opacity: 0.42;
 }
 
 .icon-button.close:hover {
