@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "finance-accounting",
+  "name": "金融与会计",
+  "version": "2026-07",
+  "description": "面向金融、会计、审计、估值和银行风险面试的术语纠错与本地知识增强。",
+  "corrections_file": "corrections.json",
+  "knowledge_file": "knowledge.json",
+  "answer_instructions": [
+    "优先采用模块提供的金融会计知识。",
+    "涉及具体准则时说明假设的准则口径，不能确定时给通用原理。",
+    "不要虚构准则编号、监管阈值或实时市场数据。"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "general",
+  "name": "通用",
+  "version": "1.0",
+  "description": "不加载领域术语纠错或专业知识，仅使用通用面试问题判断与回答框架。",
+  "answer_instructions": [
+    "按通用面试原则回答；没有可靠依据时明确说明假设。"
+  ]
+}

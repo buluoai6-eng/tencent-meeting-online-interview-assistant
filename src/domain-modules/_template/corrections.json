@@ -1,0 +1,9 @@
+{
+  "description": "把常见误识别写法替换成标准术语",
+  "replacements": [
+    {
+      "canonical": "标准术语",
+      "aliases": ["常见误识别一", "常见误识别二"]
+    }
+  ]
+}

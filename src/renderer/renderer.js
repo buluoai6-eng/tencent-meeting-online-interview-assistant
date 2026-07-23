@@ -1,11 +1,32 @@
 const shell = document.getElementById('coachShell');
 const statusLabel = document.getElementById('statusLabel');
 const listenButton = document.getElementById('listenButton');
+const platformButton = document.getElementById('platformButton');
+const platformPanel = document.getElementById('platformPanel');
+const platformMonogram = document.getElementById('platformMonogram');
+const platformLabel = document.getElementById('platformLabel');
+const captureTargetCopy = document.getElementById('captureTargetCopy');
+const captureTargetLabel = document.getElementById('captureTargetLabel');
+const sourceSelectWrap = document.getElementById('sourceSelectWrap');
+const captureSourceSelect = document.getElementById('captureSourceSelect');
+const refreshSources = document.getElementById('refreshSources');
+const platformNote = document.getElementById('platformNote');
 const recognitionButton = document.getElementById('recognitionButton');
 const recognitionPanel = document.getElementById('recognitionPanel');
 const correctionsToggle = document.getElementById('correctionsToggle');
+const streamingToggle = document.getElementById('streamingToggle');
+const micCaptureToggle = document.getElementById('micCaptureToggle');
 const recognitionSettingsPage = document.getElementById('recognitionSettingsPage');
+const domainSettingsPage = document.getElementById('domainSettingsPage');
 const answerSettingsPage = document.getElementById('answerSettingsPage');
+const domainModuleSelect = document.getElementById('domainModuleSelect');
+const domainModuleOrigin = document.getElementById('domainModuleOrigin');
+const domainModuleStats = document.getElementById('domainModuleStats');
+const domainModuleDescription = document.getElementById('domainModuleDescription');
+const domainModuleStatus = document.getElementById('domainModuleStatus');
+const openDomainGuide = document.getElementById('openDomainGuide');
+const openDomainFolder = document.getElementById('openDomainFolder');
+const reloadDomainModules = document.getElementById('reloadDomainModules');
 const apiFields = document.getElementById('apiFields');
 const apiBaseUrl = document.getElementById('apiBaseUrl');
 const apiModel = document.getElementById('apiModel');
@@ -18,6 +39,13 @@ const notesButton = document.getElementById('notesButton');
 const compactButton = document.getElementById('compactButton');
 const closeButton = document.getElementById('closeButton');
 const transcriptElement = document.getElementById('transcript');
+const transcriptSpeaker = document.getElementById('transcriptSpeaker');
+const partialTranscriptRow = document.getElementById('partialTranscriptRow');
+const partialSpeaker = document.getElementById('partialSpeaker');
+const partialTranscriptElement = document.getElementById('partialTranscript');
+const selfTranscriptRow = document.getElementById('selfTranscriptRow');
+const selfSpeaker = document.getElementById('selfSpeaker');
+const selfTranscriptElement = document.getElementById('selfTranscript');
 const hintElement = document.getElementById('hint');
 const hintPane = document.querySelector('.hint-pane');
 const hintScrollCue = document.getElementById('hintScrollCue');
@@ -32,7 +60,26 @@ const MIN_UTTERANCE_MS = 350;
 const MAX_UTTERANCE_MS = 35000;
 const PRE_ROLL_MS = 650;
 const SETTINGS_KEY = 'tencent-meeting-coach:asr-settings';
-const DEFAULT_ASR_SETTINGS = { language: 'zh', precision: 'int8', corrections: true };
+const CAPTURE_SETTINGS_KEY = 'online-interview-assistant:capture-settings';
+const PLATFORM_META = {
+  auto: { label: '自动匹配', shortLabel: 'A' },
+  tencent: { label: '腾讯会议', shortLabel: '腾' },
+  zoom: { label: 'Zoom', shortLabel: 'ZO' },
+  teams: { label: 'Teams', shortLabel: 'TE' },
+  feishu: { label: '飞书 / Lark', shortLabel: '飞' },
+  dingtalk: { label: '钉钉', shortLabel: '钉' },
+  webex: { label: 'Webex', shortLabel: 'WX' },
+  meet: { label: 'Google Meet', shortLabel: 'GM' },
+  custom: { label: '自定义窗口', shortLabel: '窗' }
+};
+const DEFAULT_ASR_SETTINGS = {
+  language: 'zh',
+  precision: 'int8',
+  corrections: true,
+  streaming: true,
+  micCapture: true,
+  domainModuleId: 'finance-accounting'
+};
 const DEFAULT_ANSWER_SETTINGS = {
   mode: 'local',
   baseUrl: 'https://api.openai.com/v1',
@@ -40,21 +87,17 @@ const DEFAULT_ANSWER_SETTINGS = {
   hasApiKey: false
 };
 
-let mediaStream = null;
-let audioContext = null;
-let sourceNode = null;
-let processorNode = null;
-let silentGain = null;
+let captureChannels = new Map();
 let listening = false;
 let compact = false;
-let speechActive = false;
-let silenceMs = 0;
-let utteranceMs = 0;
-let speechBytes = 0;
-let preRoll = [];
-let partialTranscript = '';
-let noiseFloor = 0.0015;
+let remotePartialTranscript = '';
+let selfTranscriptTimer = null;
 let asrSettings = loadAsrSettings();
+let captureSelection = loadCaptureSelection();
+let captureCatalog = null;
+let activeCaptureTarget = null;
+let domainModules = [];
+let domainModuleErrors = [];
 let answerSettings = { ...DEFAULT_ANSWER_SETTINGS };
 let savedAnswerMode = 'local';
 let qaHistory = [];
@@ -66,7 +109,10 @@ function loadAsrSettings() {
     return {
       language: saved.language === 'auto' ? 'auto' : 'zh',
       precision: saved.precision === 'fp32' ? 'fp32' : 'int8',
-      corrections: saved.corrections !== false
+      corrections: saved.corrections !== false,
+      streaming: saved.streaming !== false,
+      micCapture: saved.micCapture !== false,
+      domainModuleId: String(saved.domainModuleId || 'finance-accounting')
     };
   } catch {
     return { ...DEFAULT_ASR_SETTINGS };
@@ -75,6 +121,116 @@ function loadAsrSettings() {
 
 function saveAsrSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(asrSettings));
+}
+
+function loadCaptureSelection() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CAPTURE_SETTINGS_KEY) || '{}');
+    const platform = Object.prototype.hasOwnProperty.call(PLATFORM_META, saved.platform) ? saved.platform : 'auto';
+    return {
+      platform,
+      sourceId: String(saved.sourceId || ''),
+      sourceName: String(saved.sourceName || '')
+    };
+  } catch {
+    return { platform: 'auto', sourceId: '', sourceName: '' };
+  }
+}
+
+function saveCaptureSelection() {
+  localStorage.setItem(CAPTURE_SETTINGS_KEY, JSON.stringify(captureSelection));
+}
+
+function renderPlatformButton(target = captureCatalog?.suggestion) {
+  const selected = PLATFORM_META[captureSelection.platform] || PLATFORM_META.auto;
+  const detected = target?.platform && PLATFORM_META[target.platform] ? PLATFORM_META[target.platform] : selected;
+  platformMonogram.textContent = detected.shortLabel;
+  platformLabel.textContent = captureSelection.platform === 'auto' && target?.platform !== 'auto'
+    ? `自动 · ${detected.label}`
+    : selected.label;
+  platformButton.title = target?.sourceName
+    ? `${platformLabel.textContent}：${target.sourceName}`
+    : '选择会议平台或窗口';
+}
+
+function renderPlatformSelection() {
+  document.querySelectorAll('[data-platform]').forEach((button) => {
+    const active = button.dataset.platform === captureSelection.platform;
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function populateCaptureSources(sources = []) {
+  captureSourceSelect.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '选择一个窗口或屏幕…';
+  captureSourceSelect.appendChild(placeholder);
+
+  for (const source of sources) {
+    const option = document.createElement('option');
+    option.value = source.id;
+    option.textContent = `${source.kind === 'screen' ? '屏幕' : source.platformLabel} · ${source.name}`;
+    option.dataset.sourceName = source.name;
+    captureSourceSelect.appendChild(option);
+  }
+
+  const exact = sources.find((source) => source.id === captureSelection.sourceId);
+  const byName = sources.find((source) => captureSelection.sourceName && source.name === captureSelection.sourceName);
+  const selected = exact || byName;
+  captureSourceSelect.value = selected?.id || '';
+  if (selected && selected.id !== captureSelection.sourceId) {
+    captureSelection.sourceId = selected.id;
+    captureSelection.sourceName = selected.name;
+    saveCaptureSelection();
+  }
+}
+
+function renderCaptureCatalog(catalog) {
+  captureCatalog = catalog;
+  renderPlatformSelection();
+  const custom = captureSelection.platform === 'custom';
+  captureTargetCopy.hidden = custom;
+  sourceSelectWrap.hidden = !custom;
+  platformNote.classList.remove('warning');
+
+  if (custom) {
+    populateCaptureSources(catalog.sources);
+    const selected = catalog.sources.find((source) => source.id === captureSourceSelect.value);
+    platformNote.textContent = selected
+      ? '窗口用于目标匹配；Windows 回环仍会捕获系统正在播放的声音。'
+      : '请选择正在面试的窗口或屏幕，关闭的窗口需要重新选择。';
+    platformNote.classList.toggle('warning', !selected);
+  } else if (catalog.suggestion) {
+    captureTargetLabel.textContent = catalog.suggestion.sourceName;
+    platformNote.textContent = catalog.suggestion.fallback
+      ? catalog.suggestion.reason
+      : '已匹配窗口；Windows 回环会捕获系统正在播放的声音。';
+    platformNote.classList.toggle('warning', Boolean(catalog.suggestion.fallback));
+  } else {
+    captureTargetLabel.textContent = '没有找到匹配窗口';
+    platformNote.textContent = catalog.message || '请先进入会议，或选择“自定义窗口”。';
+    platformNote.classList.add('warning');
+  }
+  renderPlatformButton(catalog.suggestion);
+}
+
+async function refreshCaptureCatalog() {
+  refreshSources.disabled = true;
+  if (captureSelection.platform !== 'custom') captureTargetLabel.textContent = '正在扫描会议窗口…';
+  platformNote.classList.remove('warning');
+  try {
+    const catalog = await window.coach.listCaptureSources(captureSelection);
+    renderCaptureCatalog(catalog);
+    return catalog;
+  } catch (error) {
+    platformNote.textContent = error.message || String(error);
+    platformNote.classList.add('warning');
+    return null;
+  } finally {
+    refreshSources.disabled = false;
+  }
 }
 
 function renderAsrSettings() {
@@ -89,7 +245,65 @@ function renderAsrSettings() {
     button.setAttribute('aria-pressed', String(active));
   });
   correctionsToggle.checked = asrSettings.corrections;
+  streamingToggle.checked = asrSettings.streaming;
+  micCaptureToggle.checked = asrSettings.micCapture;
   recognitionButton.textContent = `${asrSettings.language === 'zh' ? '中' : '自'}·${asrSettings.precision === 'fp32' ? '32' : '8'}`;
+}
+
+function setDomainModuleMessage(message, error = false) {
+  domainModuleStatus.textContent = message;
+  domainModuleStatus.classList.toggle('error-message', error);
+}
+
+function renderDomainModules() {
+  domainModuleSelect.replaceChildren();
+  for (const module of domainModules) {
+    const option = document.createElement('option');
+    option.value = module.id;
+    option.textContent = `${module.name} · ${module.version}${module.source === 'user' ? '（用户）' : ''}`;
+    domainModuleSelect.appendChild(option);
+  }
+  let selected = domainModules.find((module) => module.id === asrSettings.domainModuleId);
+  if (!selected) {
+    selected = domainModules.find((module) => module.id === 'finance-accounting')
+      || domainModules.find((module) => module.id === 'general')
+      || domainModules[0];
+    if (selected) {
+      asrSettings.domainModuleId = selected.id;
+      saveAsrSettings();
+    }
+  }
+  domainModuleSelect.value = selected?.id || '';
+  domainModuleSelect.disabled = listening || !selected;
+  domainModuleOrigin.textContent = selected?.source === 'user' ? '用户模块' : '内置模块';
+  domainModuleOrigin.classList.toggle('user-module', selected?.source === 'user');
+  domainModuleDescription.textContent = selected?.description || '没有可用的领域模块。';
+  const stats = selected?.stats || {};
+  domainModuleStats.textContent = `${stats.correctionRules || 0} 条纠错 · ${stats.knowledgeSections || 0} 个知识专题`;
+  if (domainModuleErrors.length) {
+    const first = domainModuleErrors[0];
+    setDomainModuleMessage(`${first.folder}：${first.error}`, true);
+  } else {
+    setDomainModuleMessage('选择将在下次监听时生效');
+  }
+}
+
+async function loadDomainModules() {
+  reloadDomainModules.disabled = true;
+  setDomainModuleMessage('正在扫描模块…');
+  try {
+    const result = await window.coach.listDomainModules();
+    domainModules = result.modules || [];
+    domainModuleErrors = result.errors || [];
+    renderDomainModules();
+  } catch (error) {
+    domainModules = [];
+    domainModuleErrors = [];
+    domainModuleDescription.textContent = '无法读取领域模块。';
+    setDomainModuleMessage(error.message || String(error), true);
+  } finally {
+    reloadDomainModules.disabled = listening;
+  }
 }
 
 function setAnswerSettingsMessage(message, state = '') {
@@ -116,8 +330,8 @@ function renderAnswerSettings() {
   apiKeyState.classList.toggle('saved', answerSettings.hasApiKey);
   clearApiKey.disabled = !answerSettings.hasApiKey || listening;
   privacyNote.textContent = savedAnswerMode === 'api'
-    ? '本地识别 · API 回答 · 不保存音频'
-    : '完全本地 · 不保存音频 · 获准后使用';
+    ? 'Windows 双通道 · API 回答 · 不保存音频'
+    : 'Windows 双通道 · 完全本地 · 不保存音频';
 }
 
 async function loadAnswerSettings() {
@@ -131,8 +345,10 @@ async function loadAnswerSettings() {
 }
 
 function setSettingsDisabled(disabled) {
-  recognitionPanel.querySelectorAll('button, input').forEach((control) => { control.disabled = disabled; });
+  recognitionPanel.querySelectorAll('button, input, select').forEach((control) => { control.disabled = disabled; });
+  platformPanel.querySelectorAll('button, select').forEach((control) => { control.disabled = disabled; });
   recognitionButton.disabled = disabled;
+  platformButton.disabled = disabled;
   clearApiKey.disabled = disabled || !answerSettings.hasApiKey;
 }
 
@@ -141,29 +357,105 @@ function closeRecognitionPanel() {
   recognitionButton.setAttribute('aria-expanded', 'false');
 }
 
+function closePlatformPanel() {
+  platformPanel.hidden = true;
+  platformButton.setAttribute('aria-expanded', 'false');
+}
+
+platformButton.addEventListener('click', async (event) => {
+  event.stopPropagation();
+  const opening = platformPanel.hidden;
+  closeRecognitionPanel();
+  platformPanel.hidden = !opening;
+  platformButton.setAttribute('aria-expanded', String(opening));
+  if (opening) await refreshCaptureCatalog();
+});
+
 recognitionButton.addEventListener('click', (event) => {
   event.stopPropagation();
+  closePlatformPanel();
   recognitionPanel.hidden = !recognitionPanel.hidden;
   recognitionButton.setAttribute('aria-expanded', String(!recognitionPanel.hidden));
 });
 
+platformPanel.addEventListener('click', (event) => event.stopPropagation());
 recognitionPanel.addEventListener('click', (event) => event.stopPropagation());
-document.addEventListener('click', closeRecognitionPanel);
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeRecognitionPanel();
+document.addEventListener('click', () => {
+  closeRecognitionPanel();
+  closePlatformPanel();
 });
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeRecognitionPanel();
+    closePlatformPanel();
+  }
+});
+
+document.querySelectorAll('[data-platform]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    captureSelection.platform = button.dataset.platform;
+    saveCaptureSelection();
+    renderPlatformSelection();
+    await refreshCaptureCatalog();
+  });
+});
+
+captureSourceSelect.addEventListener('change', () => {
+  const selected = captureCatalog?.sources.find((source) => source.id === captureSourceSelect.value);
+  captureSelection.sourceId = selected?.id || '';
+  captureSelection.sourceName = selected?.name || '';
+  saveCaptureSelection();
+  platformNote.textContent = selected
+    ? '窗口用于目标匹配；Windows 回环仍会捕获系统正在播放的声音。'
+    : '请选择正在面试的窗口或屏幕，关闭的窗口需要重新选择。';
+  platformNote.classList.toggle('warning', !selected);
+  renderPlatformButton(selected ? {
+    platform: selected.platform,
+    sourceName: selected.name
+  } : null);
+});
+
+refreshSources.addEventListener('click', refreshCaptureCatalog);
 
 document.querySelectorAll('[data-settings-tab]').forEach((button) => {
   button.addEventListener('click', () => {
-    const answerTab = button.dataset.settingsTab === 'answer';
-    recognitionSettingsPage.hidden = answerTab;
-    answerSettingsPage.hidden = !answerTab;
+    const page = button.dataset.settingsTab;
+    recognitionSettingsPage.hidden = page !== 'recognition';
+    domainSettingsPage.hidden = page !== 'domain';
+    answerSettingsPage.hidden = page !== 'answer';
     document.querySelectorAll('[data-settings-tab]').forEach((tab) => {
       const active = tab === button;
       tab.classList.toggle('selected', active);
       tab.setAttribute('aria-selected', String(active));
     });
   });
+});
+
+domainModuleSelect.addEventListener('change', () => {
+  asrSettings.domainModuleId = domainModuleSelect.value;
+  saveAsrSettings();
+  renderDomainModules();
+  setDomainModuleMessage('领域模块已选择，下次监听时生效');
+});
+
+reloadDomainModules.addEventListener('click', loadDomainModules);
+
+openDomainFolder.addEventListener('click', async () => {
+  try {
+    await window.coach.openDomainModuleFolder();
+    setDomainModuleMessage('模块目录已打开；修改后点击“重新扫描”');
+  } catch (error) {
+    setDomainModuleMessage(error.message || String(error), true);
+  }
+});
+
+openDomainGuide.addEventListener('click', async () => {
+  try {
+    await window.coach.openDomainModuleGuide();
+    setDomainModuleMessage('领域模块编写说明已打开');
+  } catch (error) {
+    setDomainModuleMessage(error.message || String(error), true);
+  }
 });
 
 document.querySelectorAll('[data-answer-mode]').forEach((button) => {
@@ -231,9 +523,23 @@ correctionsToggle.addEventListener('change', () => {
   saveAsrSettings();
 });
 
+streamingToggle.addEventListener('change', () => {
+  asrSettings.streaming = streamingToggle.checked;
+  saveAsrSettings();
+});
+
+micCaptureToggle.addEventListener('change', () => {
+  asrSettings.micCapture = micCaptureToggle.checked;
+  saveAsrSettings();
+});
+
 renderAsrSettings();
+renderPlatformSelection();
+renderPlatformButton();
 renderAnswerSettings();
 loadAnswerSettings();
+loadDomainModules();
+refreshCaptureCatalog();
 
 function updateHintOverflow() {
   const overflowing = hintElement.scrollHeight > hintElement.clientHeight + 1;
@@ -248,6 +554,32 @@ function setHintText(value) {
   requestAnimationFrame(updateHintOverflow);
 }
 
+function setRemoteTranscript(value) {
+  transcriptSpeaker.textContent = '对方';
+  transcriptElement.textContent = value;
+}
+
+function setRemotePartial(value) {
+  remotePartialTranscript = String(value || '').trim();
+  partialSpeaker.textContent = '对方 · 实时';
+  partialTranscriptElement.textContent = remotePartialTranscript;
+  partialTranscriptRow.hidden = !remotePartialTranscript;
+}
+
+function setSelfTranscript(value, live = false) {
+  const text = String(value || '').trim();
+  if (selfTranscriptTimer) clearTimeout(selfTranscriptTimer);
+  selfSpeaker.textContent = live ? '我 · 实时' : '我';
+  selfTranscriptElement.textContent = text;
+  selfTranscriptRow.hidden = !text;
+  if (text && !live) {
+    selfTranscriptTimer = setTimeout(() => {
+      selfTranscriptRow.hidden = true;
+      selfTranscriptElement.textContent = '';
+    }, 6000);
+  }
+}
+
 function updateHistoryNavigation() {
   const total = qaHistory.length;
   historyPosition.textContent = total ? `${historyIndex + 1} / ${total}` : '0 / 0';
@@ -259,7 +591,7 @@ function renderHistoryEntry(index) {
   if (index < 0 || index >= qaHistory.length) return;
   historyIndex = index;
   const entry = qaHistory[historyIndex];
-  transcriptElement.textContent = entry.transcript;
+  setRemoteTranscript(entry.transcript);
   setHintText(entry.hint);
   updateHistoryNavigation();
   statusLabel.textContent = historyIndex === qaHistory.length - 1
@@ -325,96 +657,164 @@ function calculateRms(samples) {
   return Math.sqrt(sum / samples.length);
 }
 
-function resetUtterance() {
-  speechActive = false;
-  silenceMs = 0;
-  utteranceMs = 0;
-  speechBytes = 0;
-  preRoll = [];
+function resetUtterance(channel) {
+  channel.speechActive = false;
+  channel.silenceMs = 0;
+  channel.utteranceMs = 0;
+  channel.speechBytes = 0;
+  channel.preRoll = [];
 }
 
-function commitUtterance() {
-  if (speechBytes >= TARGET_SAMPLE_RATE * 2 * 0.1) window.coach.commitAudio();
-  resetUtterance();
+function commitUtterance(channel) {
+  if (channel.speechBytes >= TARGET_SAMPLE_RATE * 2 * 0.1) window.coach.commitAudio(channel.source);
+  resetUtterance(channel);
 }
 
-function processAudio(event) {
+function processAudio(channel, event) {
   if (!listening) return;
   const samples = event.inputBuffer.getChannelData(0);
   const pcm = floatToPcm16(samples);
   const rms = calculateRms(samples);
-  const chunkMs = (samples.length / audioContext.sampleRate) * 1000;
+  const chunkMs = (samples.length / channel.audioContext.sampleRate) * 1000;
   const base64 = toBase64(pcm);
-  const startThreshold = Math.max(0.0028, Math.min(0.012, noiseFloor * 3.2));
-  const stopThreshold = Math.max(0.0023, Math.min(0.009, noiseFloor * 2.0));
+  const startThreshold = Math.max(0.0028, Math.min(0.012, channel.noiseFloor * 3.2));
+  const stopThreshold = Math.max(0.0023, Math.min(0.009, channel.noiseFloor * 2.0));
 
-  if (!speechActive) {
-    preRoll.push({ base64, bytes: pcm.byteLength, duration: chunkMs });
-    let total = preRoll.reduce((sum, chunk) => sum + chunk.duration, 0);
-    while (total > PRE_ROLL_MS && preRoll.length > 1) {
-      total -= preRoll.shift().duration;
+  if (!channel.speechActive) {
+    channel.preRoll.push({ base64, bytes: pcm.byteLength, duration: chunkMs });
+    let total = channel.preRoll.reduce((sum, chunk) => sum + chunk.duration, 0);
+    while (total > PRE_ROLL_MS && channel.preRoll.length > 1) {
+      total -= channel.preRoll.shift().duration;
     }
 
     if (rms >= startThreshold) {
-      speechActive = true;
-      for (const chunk of preRoll) {
-        window.coach.sendAudio(chunk.base64);
-        speechBytes += chunk.bytes;
-        utteranceMs += chunk.duration;
+      channel.speechActive = true;
+      for (const chunk of channel.preRoll) {
+        window.coach.sendAudio(channel.source, chunk.base64);
+        channel.speechBytes += chunk.bytes;
+        channel.utteranceMs += chunk.duration;
       }
-      preRoll = [];
+      channel.preRoll = [];
     } else {
-      noiseFloor = noiseFloor * 0.97 + Math.min(rms, 0.012) * 0.03;
+      channel.noiseFloor = channel.noiseFloor * 0.97 + Math.min(rms, 0.012) * 0.03;
     }
     return;
   }
 
-  window.coach.sendAudio(base64);
-  speechBytes += pcm.byteLength;
-  utteranceMs += chunkMs;
-  silenceMs = rms < stopThreshold ? silenceMs + chunkMs : 0;
+  window.coach.sendAudio(channel.source, base64);
+  channel.speechBytes += pcm.byteLength;
+  channel.utteranceMs += chunkMs;
+  channel.silenceMs = rms < stopThreshold ? channel.silenceMs + chunkMs : 0;
 
-  if ((silenceMs >= SILENCE_TO_COMMIT_MS && utteranceMs >= MIN_UTTERANCE_MS) || utteranceMs >= MAX_UTTERANCE_MS) {
-    commitUtterance();
+  if (
+    (channel.silenceMs >= SILENCE_TO_COMMIT_MS && channel.utteranceMs >= MIN_UTTERANCE_MS) ||
+    channel.utteranceMs >= MAX_UTTERANCE_MS
+  ) {
+    commitUtterance(channel);
   }
 }
 
-async function setupAudioGraph(stream) {
+async function setupAudioGraph(stream, source) {
   const audioTracks = stream.getAudioTracks();
-  if (!audioTracks.length) throw new Error('没有捕获到系统音频。请确认 Windows 正在播放腾讯会议声音。');
+  if (!audioTracks.length) {
+    throw new Error(source === 'remote'
+      ? '没有捕获到系统音频。请确认 Windows 正在播放会议声音。'
+      : '没有捕获到麦克风音频。');
+  }
   stream.getVideoTracks().forEach((track) => track.stop());
 
-  audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE, latencyHint: 'interactive' });
+  const audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE, latencyHint: 'interactive' });
   const audioOnlyStream = new MediaStream(audioTracks);
-  sourceNode = audioContext.createMediaStreamSource(audioOnlyStream);
-  processorNode = audioContext.createScriptProcessor(4096, 1, 1);
-  silentGain = audioContext.createGain();
+  const sourceNode = audioContext.createMediaStreamSource(audioOnlyStream);
+  const processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+  const silentGain = audioContext.createGain();
   silentGain.gain.value = 0;
-  processorNode.onaudioprocess = processAudio;
+  const channel = {
+    source,
+    stream,
+    audioContext,
+    sourceNode,
+    processorNode,
+    silentGain,
+    speechActive: false,
+    silenceMs: 0,
+    utteranceMs: 0,
+    speechBytes: 0,
+    preRoll: [],
+    noiseFloor: source === 'local' ? 0.002 : 0.0015
+  };
+  processorNode.onaudioprocess = (event) => processAudio(channel, event);
   sourceNode.connect(processorNode);
   processorNode.connect(silentGain);
   silentGain.connect(audioContext.destination);
   await audioContext.resume();
+  captureChannels.set(source, channel);
+  return channel;
+}
+
+async function closeCaptureChannel(channel) {
+  channel.processorNode.onaudioprocess = null;
+  channel.processorNode.disconnect();
+  channel.sourceNode.disconnect();
+  channel.silentGain.disconnect();
+  channel.stream.getTracks().forEach((track) => track.stop());
+  await channel.audioContext.close().catch(() => {});
 }
 
 async function startListening() {
   closeRecognitionPanel();
+  closePlatformPanel();
   setSettingsDisabled(true);
-  setVisualState('connecting', '正在请求系统音频');
+  listenButton.disabled = true;
+  setVisualState('connecting', '正在匹配会议窗口');
   try {
-    mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-    await setupAudioGraph(mediaStream);
+    activeCaptureTarget = await window.coach.prepareCaptureTarget(captureSelection);
+    renderPlatformButton(activeCaptureTarget);
+    setVisualState('connecting', `已匹配 ${activeCaptureTarget.platformLabel} · 正在请求系统音频`);
+    const systemStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const remoteChannel = await setupAudioGraph(systemStream, 'remote');
+    let micError = '';
+    if (asrSettings.micCapture) {
+      setVisualState('connecting', '正在请求麦克风 · 用于区分“我”');
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1
+          }
+        });
+        await setupAudioGraph(micStream, 'local');
+      } catch (error) {
+        micError = error.message || String(error);
+      }
+    }
     const result = await window.coach.start({
-      sampleRate: audioContext.sampleRate,
+      sampleRate: remoteChannel.audioContext.sampleRate,
       asrLanguage: asrSettings.language,
       asrPrecision: asrSettings.precision,
-      asrCorrections: asrSettings.corrections
+      asrCorrections: asrSettings.corrections,
+      asrStreaming: asrSettings.streaming,
+      micEnabled: captureChannels.has('local'),
+      domainModuleId: asrSettings.domainModuleId
     });
     listening = true;
+    listenButton.disabled = false;
     listenButton.textContent = '停止监听';
     listenButton.classList.add('active');
     const answerLabel = result.provider === 'api' ? `API ${result.model}` : '本地 Qwen';
-    setVisualState('ready', `监听中 · ${result.settings.language === 'zh' ? '中文' : '自动'} ${result.settings.precision.toUpperCase()} · VAD · ${answerLabel}`);
+    const streamLabel = result.streaming ? 'FunASR 流式' : '整句字幕';
+    const speakerLabel = captureChannels.has('local') ? '对方/我已分离' : '仅对方音频';
+    const meetingLabel = result.captureTarget?.platformLabel || activeCaptureTarget.platformLabel;
+    const domainLabel = result.domainModule?.name || '通用';
+    setVisualState(
+      'ready',
+      micError
+        ? `监听 ${meetingLabel} · ${domainLabel} · 麦克风不可用`
+        : `监听 ${meetingLabel} · ${domainLabel} · ${streamLabel} · ${speakerLabel} · ${answerLabel}`
+    );
     setHintText('先给结论，再用真实经历展开。');
   } catch (error) {
     await stopListening();
@@ -424,23 +824,19 @@ async function startListening() {
 }
 
 async function stopListening() {
-  if (speechActive) commitUtterance();
+  for (const channel of captureChannels.values()) {
+    if (channel.speechActive) commitUtterance(channel);
+  }
   listening = false;
-  processorNode?.disconnect();
-  sourceNode?.disconnect();
-  silentGain?.disconnect();
-  processorNode = null;
-  sourceNode = null;
-  silentGain = null;
-  mediaStream?.getTracks().forEach((track) => track.stop());
-  mediaStream = null;
-  if (audioContext) await audioContext.close().catch(() => {});
-  audioContext = null;
+  await Promise.all([...captureChannels.values()].map(closeCaptureChannel));
+  captureChannels = new Map();
   await window.coach.stop().catch(() => {});
   listenButton.textContent = '开始监听';
+  listenButton.disabled = false;
   listenButton.classList.remove('active');
   setSettingsDisabled(false);
-  resetUtterance();
+  setRemotePartial('');
+  setSelfTranscript('');
   setVisualState('stopped', '监听已停止');
 }
 
@@ -474,19 +870,30 @@ closeButton.addEventListener('click', async () => {
 
 window.coach.onStatus(({ state, label }) => setVisualState(state, label));
 
-window.coach.onDelta(({ delta }) => {
-  partialTranscript += delta;
-  if (!qaHistory.length) transcriptElement.textContent = partialTranscript || '正在识别…';
+window.coach.onDelta(({ speaker = 'remote', partial, delta, final = false }) => {
+  const next = partial !== undefined
+    ? String(partial || '')
+    : `${speaker === 'remote' ? remotePartialTranscript : selfTranscriptElement.textContent}${delta || ''}`;
+  if (speaker === 'local') {
+    setSelfTranscript(final ? '' : next, !final);
+    return;
+  }
+  setRemotePartial(final ? '' : next);
 });
 
-window.coach.onTranscript(({ transcript }) => {
-  partialTranscript = '';
-  if (!qaHistory.length) transcriptElement.textContent = transcript;
+window.coach.onTranscript(({ transcript, speaker = 'remote' }) => {
+  if (speaker === 'local') {
+    setSelfTranscript(transcript, false);
+    return;
+  }
+  setRemotePartial('');
+  setRemoteTranscript(transcript);
 });
 
 window.coach.onHintStart(({ transcript }) => {
   shell.classList.add('thinking');
-  transcriptElement.textContent = transcript;
+  setRemotePartial('');
+  setRemoteTranscript(transcript);
   setHintText('正在提炼回答抓手…');
   statusLabel.textContent = '识别到问题 · 正在整理';
 });

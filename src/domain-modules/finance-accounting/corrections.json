@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "Tencent Meeting Coach 本地财会转写纠错。可在 E:\\TencentMeetingCoachLocal\\config 中编辑副本。",
+  "description": "线上会议面试助手内置金融与会计领域模块的语音纠错规则。",
   "replacements": [
     { "canonical": "权责发生制", "aliases": ["全责发生制", "权泽发生制", "权则发生制", "权责发声制", "权责发生质"] },
     { "canonical": "收付实现制", "aliases": ["收复实现制", "收付实现值", "收付时限制", "收付实现质", "收付实限制"] },
