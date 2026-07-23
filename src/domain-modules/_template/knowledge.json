@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "context_note": "写入本领域回答时始终需要遵守的口径或限制。",
+  "fallback_section_ids": ["answer-framework"],
+  "always_include_section_ids": ["answer-framework"],
+  "sections": [
+    {
+      "id": "core-concepts",
+      "title": "核心概念",
+      "keywords": ["示例关键词", "example"],
+      "content": "用简洁、稳定、可核对的文字总结本领域核心知识。"
+    },
+    {
+      "id": "answer-framework",
+      "title": "领域面试回答框架",
+      "keywords": ["分析", "解释", "如何"],
+      "content": "先给结论，再说明定义、关键驱动、适用条件、风险与验证方法。"
+    }
+  ],
+  "sources": []
+}

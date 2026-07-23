@@ -29,6 +29,9 @@ def main():
     parser.add_argument("--wav", required=True)
     args = parser.parse_args()
 
+    module_corrections = Path(__file__).resolve().parents[1] / "src" / "domain-modules" / "finance-accounting" / "corrections.json"
+    correction_rules = json.loads(module_corrections.read_text(encoding="utf-8"))["replacements"]
+
     sample_rate, pcm = read_wav(Path(args.wav))
     silence = b"\0\0" * round(sample_rate * 0.8)
     padded_pcm = silence + pcm + silence
@@ -37,7 +40,13 @@ def main():
         config = request_json(
             f"{args.url}/configure",
             method="POST",
-            body={"precision": precision, "language": language, "corrections": True},
+            body={
+                "precision": precision,
+                "language": language,
+                "corrections": True,
+                "domain_module": "finance-accounting",
+                "correction_rules": correction_rules,
+            },
         )
         started = time.perf_counter()
         result = request_json(
@@ -63,6 +72,34 @@ def main():
             "speech_ms": result["speech_ms"],
         })
 
+    general_config = request_json(
+        f"{args.url}/configure",
+        method="POST",
+        body={
+            "precision": "int8",
+            "language": "zh",
+            "corrections": True,
+            "domain_module": "general",
+            "correction_rules": [],
+        },
+    )
+    assert general_config["domain_module"] == "general"
+    assert general_config["correction_rules"] == 0
+
+    finance_config = request_json(
+        f"{args.url}/configure",
+        method="POST",
+        body={
+            "precision": "int8",
+            "language": "zh",
+            "corrections": True,
+            "domain_module": "finance-accounting",
+            "correction_rules": correction_rules,
+        },
+    )
+    assert finance_config["domain_module"] == "finance-accounting"
+    assert finance_config["correction_rules"] == len(correction_rules)
+
     silent_result = request_json(
         f"{args.url}/transcribe",
         method="POST",
@@ -72,7 +109,11 @@ def main():
     assert silent_result["text"] == ""
     assert silent_result["segments"] == 0
 
-    print(json.dumps({"runs": runs, "silence_filtered": True}, ensure_ascii=False, indent=2))
+    print(json.dumps({
+        "runs": runs,
+        "silence_filtered": True,
+        "domain_switch": {"general": 0, "finance-accounting": len(correction_rules)},
+    }, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

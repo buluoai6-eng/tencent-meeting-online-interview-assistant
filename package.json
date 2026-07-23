@@ -1,19 +1,19 @@
 {
-  "name": "tencent-meeting-finance-coach",
-  "version": "0.3.4",
-  "description": "Online interview assistant for Tencent Meeting on Windows with local or user-provided API answers and targeted finance/accounting optimization.",
+  "name": "online-meeting-interview-assistant-windows",
+  "version": "1.0.0",
+  "description": "Windows online interview assistant with meeting-platform routing, local streaming speech recognition, and selectable domain modules.",
   "main": "src/main.js",
   "author": "buluoai6-eng",
-  "homepage": "https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant",
+  "homepage": "https://github.com/buluoai6-eng/online-meeting-interview-assistant",
   "repository": {
     "type": "git",
-    "url": "https://github.com/buluoai6-eng/tencent-meeting-online-interview-assistant.git"
+    "url": "https://github.com/buluoai6-eng/online-meeting-interview-assistant.git"
   },
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/turn-guard.js && node --check src/finance-knowledge.js && node --check src/hint-prompt.js && node --check src/answer-provider.js && node --check scripts/smoke-local.js && node --check scripts/smoke-key-storage.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js && node --check scripts/test-turn-guard.js && node --check scripts/test-answer-provider.js",
-    "test:questions": "node scripts/test-question-detector.js && node scripts/test-turn-guard.js && node scripts/test-answer-provider.js",
+    "test:syntax": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check src/question-detector.js && node --check src/turn-guard.js && node --check src/speaker-router.js && node --check src/platform-capture.js && node --check src/domain-modules.js && node --check src/domain-knowledge.js && node --check src/hint-prompt.js && node --check src/answer-provider.js && node --check scripts/smoke-local.js && node --check scripts/smoke-key-storage.js && node --check scripts/benchmark-finance.js && node --check scripts/test-question-detector.js && node --check scripts/test-turn-guard.js && node --check scripts/test-answer-provider.js && node --check scripts/test-speaker-routing.js && node --check scripts/test-platform-capture.js && node --check scripts/test-domain-modules.js",
+    "test:questions": "node scripts/test-question-detector.js && node scripts/test-turn-guard.js && node scripts/test-answer-provider.js && node scripts/test-speaker-routing.js && node scripts/test-platform-capture.js && node scripts/test-domain-modules.js",
     "test:local": "node scripts/smoke-local.js",
     "test:key-storage": "electron scripts/smoke-key-storage.js",
     "benchmark:finance": "node scripts/benchmark-finance.js",
@@ -25,8 +25,8 @@
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "io.github.buluoai6eng.tencentmeetingfinancecoach",
-    "productName": "Tencent Meeting Online Interview Assistant",
+    "appId": "io.github.buluoai6eng.onlinemeetinginterviewassistant",
+    "productName": "线上会议面试助手",
     "asar": true,
     "files": [
       "src/**/*",
@@ -37,14 +37,15 @@
       {
         "from": "local-backend",
         "to": "local-backend",
-        "filter": ["asr_server.py", "finance-asr-corrections.json"]
+        "filter": ["asr_server.py"]
       }
     ],
     "win": {
+      "icon": "build/icon.svg",
       "target": [
         "portable"
       ],
-    "artifactName": "TencentMeetingInterviewAssistant-Local-${version}-portable.${ext}"
+    "artifactName": "OnlineMeetingInterviewAssistant-Windows-${version}-portable.${ext}"
     }
   }
 }

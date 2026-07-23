@@ -1,8 +1,10 @@
 const { performance } = require('perf_hooks');
 const { buildHintRequest, normalizeHintResponse } = require('../src/hint-prompt');
+const { loadBundledDomainModule } = require('../src/domain-modules');
 
 const ollamaUrl = process.env.COACH_OLLAMA_URL || 'http://127.0.0.1:11434';
 const model = process.env.COACH_LOCAL_LLM || 'qwen3.5:9b';
+const domainModule = loadBundledDomainModule('finance-accounting');
 const questions = [
   '请解释为什么一家公司的净利润增长，但经营现金流可能下降？',
   '请讲一下DCF估值的核心步骤，以及WACC应该如何计算？',
@@ -15,7 +17,8 @@ async function ask(question) {
   const built = buildHintRequest({
     transcript: question,
     prepNotes: '目标岗位：金融分析/财务。回答要先给结论，再解释驱动因素和风险。',
-    model
+    model,
+    domainModule
   });
   const started = performance.now();
   const response = await fetch(`${ollamaUrl}/api/chat`, {
@@ -42,7 +45,7 @@ async function main() {
     const result = await ask(question);
     results.push(result);
     console.log(`\n${result.question}`);
-    console.log(`知识：${result.sections.join(' / ')}`);
+    console.log(`模块：${domainModule.name} · 知识：${result.sections.join(' / ')}`);
     console.log(`耗时：${result.milliseconds.toFixed(0)} ms`);
     console.log(result.answer);
   }

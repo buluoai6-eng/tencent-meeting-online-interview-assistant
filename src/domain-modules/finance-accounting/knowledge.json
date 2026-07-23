@@ -1,6 +1,8 @@
 {
   "version": "2026-07",
   "jurisdiction_note": "先确认口径：面试未说明时按通用原理回答，并说明 IFRS、中国企业会计准则与 US GAAP 在具体分类、计量、列报和披露上可能不同；不要编造准则编号、阈值或最新监管数值。",
+  "fallback_section_ids": ["statements-linkage", "ratios-dupont"],
+  "always_include_section_ids": ["interview-framework"],
   "sections": [
     {
       "id": "statements-linkage",

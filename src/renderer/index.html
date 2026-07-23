@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>腾讯会议线上面试助手</title>
+    <title>线上会议面试助手 · Windows</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -15,12 +15,17 @@
         <div class="status-cluster">
           <span class="status-dot" id="statusDot" aria-hidden="true"></span>
           <div>
-            <div class="eyebrow">TENCENT MEETING · INTERVIEW ASSISTANT</div>
+            <div class="eyebrow">WINDOWS MEETING ROUTER · INTERVIEW ASSISTANT</div>
             <div class="status-label" id="statusLabel" aria-live="polite">准备就绪</div>
           </div>
         </div>
 
         <div class="actions">
+          <button class="platform-route" id="platformButton" title="选择会议平台或窗口" aria-label="选择会议平台或窗口" aria-expanded="false">
+            <span class="platform-monogram" id="platformMonogram" aria-hidden="true">A</span>
+            <span class="platform-route-copy"><small>当前平台</small><strong id="platformLabel">自动匹配</strong></span>
+            <span class="route-chevron" aria-hidden="true">⌄</span>
+          </button>
           <button class="action action-primary" id="listenButton">开始监听</button>
           <button class="icon-button recognition-button" id="recognitionButton" title="识别与回答设置" aria-label="打开识别与回答设置" aria-expanded="false">中·8</button>
           <button class="icon-button" id="notesButton" title="编辑准备信息" aria-label="编辑准备信息">✎</button>
@@ -29,9 +34,46 @@
         </div>
       </header>
 
+      <section class="platform-panel" id="platformPanel" aria-label="选择会议平台" hidden>
+        <div class="platform-panel-heading">
+          <div>
+            <div class="pane-label">音频路由</div>
+            <strong>选择会议平台</strong>
+          </div>
+          <span>Windows 版 · 系统音频与麦克风分流</span>
+        </div>
+
+        <div class="platform-grid" id="platformGrid" role="group" aria-label="会议平台">
+          <button type="button" data-platform="auto"><span>A</span>自动匹配</button>
+          <button type="button" data-platform="tencent"><span>腾</span>腾讯会议</button>
+          <button type="button" data-platform="zoom"><span>ZO</span>Zoom</button>
+          <button type="button" data-platform="teams"><span>TE</span>Teams</button>
+          <button type="button" data-platform="feishu"><span>飞</span>飞书 / Lark</button>
+          <button type="button" data-platform="dingtalk"><span>钉</span>钉钉</button>
+          <button type="button" data-platform="webex"><span>WX</span>Webex</button>
+          <button type="button" data-platform="meet"><span>GM</span>Google Meet</button>
+          <button type="button" data-platform="custom"><span>＋</span>自定义窗口</button>
+        </div>
+
+        <div class="capture-target-row">
+          <span class="route-node" aria-hidden="true"><i></i><i></i></span>
+          <div class="capture-target-copy" id="captureTargetCopy">
+            <small>将要捕获</small>
+            <strong id="captureTargetLabel">正在扫描会议窗口…</strong>
+          </div>
+          <label class="source-select-wrap" id="sourceSelectWrap" hidden>
+            <span class="sr-only">选择窗口或屏幕</span>
+            <select id="captureSourceSelect" aria-label="选择窗口或屏幕"></select>
+          </label>
+          <button type="button" class="refresh-sources" id="refreshSources">重新扫描</button>
+        </div>
+        <p class="platform-note" id="platformNote">自动匹配已知会议窗口；没有命中时使用主屏幕系统音频。</p>
+      </section>
+
       <section class="recognition-panel" id="recognitionPanel" aria-label="识别与回答设置" hidden>
         <nav class="settings-tabs" aria-label="设置类别">
           <button type="button" class="selected" data-settings-tab="recognition" aria-selected="true">识别</button>
+          <button type="button" data-settings-tab="domain" aria-selected="false">领域</button>
           <button type="button" data-settings-tab="answer" aria-selected="false">回答</button>
           <span>下次监听生效</span>
         </nav>
@@ -63,12 +105,49 @@
             </div>
           </div>
 
-          <label class="correction-toggle">
-            <input id="correctionsToggle" type="checkbox" />
-            <span aria-hidden="true"></span>
-            <div><strong>财会术语纠错</strong><small>词表仅保存在本机，可自行编辑</small></div>
-          </label>
+          <div class="toggle-stack">
+            <label class="correction-toggle">
+              <input id="correctionsToggle" type="checkbox" />
+              <span aria-hidden="true"></span>
+              <div><strong>领域术语纠错</strong><small>使用当前领域模块中的纠错规则</small></div>
+            </label>
+            <label class="correction-toggle">
+              <input id="streamingToggle" type="checkbox" />
+              <span aria-hidden="true"></span>
+              <div><strong>流式临时字幕</strong><small>FunASR 约每 600ms 更新，最终以整句识别为准</small></div>
+            </label>
+            <label class="correction-toggle">
+              <input id="micCaptureToggle" type="checkbox" />
+              <span aria-hidden="true"></span>
+              <div><strong>分离我的麦克风</strong><small>系统音频标记“对方”，麦克风标记“我”</small></div>
+            </label>
+          </div>
         </div>
+
+        <section class="settings-page domain-settings" id="domainSettingsPage" hidden>
+          <div class="domain-heading">
+            <div>
+              <div class="pane-label">领域模块</div>
+              <strong>切换术语纠错与知识库</strong>
+            </div>
+            <span id="domainModuleOrigin">内置模块</span>
+          </div>
+
+          <div class="domain-picker-row">
+            <label class="domain-select-wrap">
+              <span class="sr-only">选择领域模块</span>
+              <select id="domainModuleSelect" aria-label="选择领域模块"></select>
+            </label>
+            <div class="module-stats" id="domainModuleStats">0 条纠错 · 0 个知识专题</div>
+          </div>
+          <p class="domain-description" id="domainModuleDescription">正在扫描领域模块…</p>
+          <div class="domain-actions">
+            <span id="domainModuleStatus" aria-live="polite">选择将在下次监听时生效</span>
+            <button type="button" class="text-button" id="openDomainGuide">编写说明</button>
+            <button type="button" class="text-button" id="openDomainFolder">打开模块目录</button>
+            <button type="button" class="text-button" id="reloadDomainModules">重新扫描</button>
+          </div>
+        </section>
 
         <form class="settings-page answer-settings" id="answerSettingsPage" hidden>
           <div class="answer-toolbar">
@@ -105,7 +184,20 @@
       <section class="content" id="content">
         <div class="heard-pane">
           <div class="pane-label">听到的问题</div>
-          <p class="transcript" id="transcript">点击“开始监听”，然后让腾讯会议播放声音。</p>
+          <div class="subtitle-stack">
+            <div class="transcript-row">
+              <span class="speaker-badge" id="transcriptSpeaker">对方</span>
+              <p class="transcript" id="transcript">选择会议平台并点击“开始监听”，然后让对方说话。</p>
+            </div>
+            <div class="transcript-row partial-row" id="partialTranscriptRow" hidden>
+              <span class="speaker-badge live" id="partialSpeaker">对方 · 实时</span>
+              <p class="partial-transcript" id="partialTranscript"></p>
+            </div>
+            <div class="transcript-row self-row" id="selfTranscriptRow" hidden>
+              <span class="speaker-badge self" id="selfSpeaker">我</span>
+              <p class="self-transcript" id="selfTranscript"></p>
+            </div>
+          </div>
         </div>
 
         <div class="divider" aria-hidden="true"></div>
@@ -120,7 +212,7 @@
       </section>
 
       <footer>
-        <span class="privacy-note" id="privacyNote">完全本地 · 不保存音频 · 获准后使用</span>
+        <span class="privacy-note" id="privacyNote">Windows 双通道 · 不保存音频 · 获准后使用</span>
         <nav class="history-nav" id="historyNav" aria-label="本次使用的历史问答">
           <button type="button" id="historyPrevious" aria-label="查看上一条问答" title="上一条问答">‹</button>
           <span id="historyPosition" aria-live="polite">0 / 0</span>

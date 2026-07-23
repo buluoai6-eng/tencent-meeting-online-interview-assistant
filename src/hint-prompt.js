@@ -1,4 +1,5 @@
-const { selectFinanceKnowledge } = require('./finance-knowledge');
+const { selectDomainKnowledge } = require('./domain-knowledge');
+const { loadBundledDomainModule } = require('./domain-modules');
 
 const BEHAVIORAL_MARKERS = [
   '自我介绍', '为什么选择', '为什么离职', '职业规划', '优势', '缺点', '弱点',
@@ -27,8 +28,9 @@ function normalizeHintResponse(content, transcript) {
   return text.replace(/\n{2,}/g, '\n').trim();
 }
 
-function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'qwen3.5:9b' }) {
-  const selected = selectFinanceKnowledge(transcript);
+function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'qwen3.5:9b', domainModule = null }) {
+  const activeModule = domainModule || loadBundledDomainModule('finance-accounting');
+  const selected = selectDomainKnowledge(transcript, activeModule);
   const behavioral = isBehavioralQuestion(transcript);
   const formatInstruction = behavioral
     ? '本题已由程序判定为行为题：只输出三行，依次以“核心：”“结构：”“落点：”开头。'
@@ -40,11 +42,11 @@ function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'q
         {
           role: 'system',
           content: [
-            '你是一个经许可使用的实时线上面试辅助工具，并针对金融与会计问题做了专项优化。',
+            `你是一个经许可使用的实时线上面试辅助工具。当前领域模块：${activeModule.name}。`,
             '只提供快速回答抓手，不代替候选人完成长篇回答，不虚构经历、数字、准则条文或实时市场数据。',
             formatInstruction,
             '每行短而具体，总长度尽量控制在180个汉字以内；不要合并成一段，不展示思维过程，不使用Markdown标题或项目符号。',
-            '优先采用提供的金融会计知识；涉及具体准则时说明假设的准则口径，不能确定时给通用原理。',
+            ...activeModule.answerInstructions,
             '如果输入不是问题，只输出 NO_HINT。'
           ].join('\n')
         },
@@ -53,7 +55,7 @@ function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'q
           content: [
             `最近对话：\n${String(context).slice(-1600)}`,
             `刚听到的问题：\n${transcript}`,
-            `召回的金融会计知识：\n${selected.text}`,
+            `召回的“${activeModule.name}”领域知识：\n${selected.text}`,
             `候选人准备信息：\n${String(prepNotes).slice(0, 5000)}`
           ].join('\n\n')
         }
@@ -64,7 +66,8 @@ function buildHintRequest({ transcript, context = '', prepNotes = '', model = 'q
       options: { temperature: 0.15, num_predict: 180, num_ctx: 6144 }
     },
     knowledgeSections: selected.sections,
-    knowledgeVersion: selected.version
+    knowledgeVersion: selected.version,
+    domainModule: { id: activeModule.id, name: activeModule.name, version: activeModule.version }
   };
 }
 

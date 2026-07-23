@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "replace-me",
+  "name": "示例领域",
+  "version": "1.0",
+  "description": "复制并修改这个模板。",
+  "corrections_file": "corrections.json",
+  "knowledge_file": "knowledge.json",
+  "answer_instructions": [
+    "优先使用模块提供的领域知识，并说明关键假设。"
+  ]
+}
